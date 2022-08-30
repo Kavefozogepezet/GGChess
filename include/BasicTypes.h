@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 namespace GGChess
 {
     // constants to eliminate magic numbers
@@ -7,21 +9,23 @@ namespace GGChess
     static const size_t BOARD_SIZE = 8;
     static const size_t BOARD_SQUARE_COUNT = BOARD_SIZE * BOARD_SIZE;
 
+    static const size_t MAX_MOVES = 256;
+    static const size_t MAX_DEPTH = 16;
     static const size_t TABLE_SIZE = 1048576;
 
-    enum class Side : unsigned char
+    enum class Side : uint8_t
     {
-        White = 8,
-        Black = 16,
+        NoSide  = 0,
+        White   = 0b01000,
+        Black   = 0b10000,
 
-        SideBits = 24
+        SideBits = 0b11000 // Bits representing the side in a piece
     };
 
-    inline Side OtherSide(Side side) {
-        return side == Side::White ? Side::Black : Side::White;
-    }
-
-    enum class Piece : unsigned char
+    inline Side otherside(Side side);
+    inline Side operator ^ (Side lhs, Side rhs);
+    
+    enum class PieceType : uint8_t
     {
         None = 0,
         King,
@@ -29,22 +33,29 @@ namespace GGChess
         Bishop,
         Knight,
         Rook,
-        Pawn
+        Pawn,
+
+        PieceBits = 0b111 // Bits representing the piece type in a piece
     };
 
-    inline Piece operator | (Piece piece, Side side) {
-        return (Piece)((unsigned char)piece | (unsigned char)side);
-    }
+    enum class Piece : uint8_t
+    {
+        Empty = 0,
 
-    inline Piece pieceof(Piece piece) {
-        return (Piece)((unsigned char)piece & ~(unsigned char)Side::SideBits);
-    }
+        WKing = 9, WQueen = 10, WBishop = 11, WKnight = 12, WRook = 13, WPawn = 14,
+        BKing = 17, BQueen = 18, BBishop = 19, BKnight = 20, BRook = 21, BPawn = 22
+    };
 
-    inline Side sideof(Piece piece) {
-        return (Side)((unsigned char)piece & (unsigned char)Side::SideBits);
-    }
+    inline Piece operator | (PieceType piece_t, Side side);
+    inline PieceType pieceof(Piece piece);
+    inline Side sideof(Piece piece);
 
-    enum Square : char
+    typedef int Value;
+
+    inline Value valueof(PieceType piece);
+    inline Value valueof(Piece piece);
+
+    enum Square : int8_t
     {
         a1, b1, c1, d1, e1, f1, g1, h1,
         a2, b2, c2, d2, e2, f2, g2, h2,
@@ -57,36 +68,20 @@ namespace GGChess
         InvalidSquare = 127
     };
 
-    inline bool validSquare(Square square) {
-        return (char)square >= 0 && (char)square < 64;
-    }
+    inline bool validsquare(Square square);
+    inline Square flipside(Square square);
 
-    inline int rankof(Square square) {
-        return (char)square / 8;
-    }
+    inline int8_t rankof(Square square);
+    inline int8_t fileof(Square square);
 
-    inline int fileof(Square square) {
-        return (char)square % 8;
-    }
+    inline Square operator + (Square square, int8_t delta);
+    inline Square operator - (Square square, int8_t delta);
 
-    inline Square operator + (Square square, char delta) {
-        return (Square)((char)square + delta);
-    }
-
-    inline Square operator - (Square square, char delta) {
-        return (Square)((char)square - delta);
-    }
-
-    inline Square operator + (Square square, int delta) {
-        return (Square)((int)square + delta);
-    }
-
-    inline Square operator - (Square square, int delta) {
-        return (Square)((int)square - delta);
-    }
+    inline Square operator + (Square square, int delta);
+    inline Square operator - (Square square, int delta);
 
     // Add this to a square to advance in a given direction
-    enum SDir : char
+    enum SDir : int8_t
     {
         N = 8,
         NE = 9,
@@ -98,76 +93,80 @@ namespace GGChess
         NW = 7
     };
     
-    inline Square operator + (Square square, SDir dir) {
-        return (Square)((char)square + (char)dir);
-    }
+    inline Square operator + (Square square, SDir dir);
 
-    enum CastleFlag : unsigned char {
-        WhiteKingside = 1,
-        WhiteQueenside = 2,
-        BlackKingside = 4,
-        BlackQueenside = 8
+    enum CastleFlag : uint8_t {
+        WhiteKingside   = 0b0001,
+        WhiteQueenside  = 0b0010,
+        BlackKingside   = 0b0100,
+        BlackQueenside  = 0b1000,
+
+        WhiteCastle     = 0b0011,
+        BlackCastle     = 0b1100
     };
+
+    inline CastleFlag operator ~ (CastleFlag flag);
+
+    inline CastleFlag& operator &= (CastleFlag& lhs, CastleFlag rhs);
+    inline CastleFlag operator & (CastleFlag lhs, CastleFlag rhs);
+
+    inline CastleFlag& operator |= (CastleFlag& lhs, CastleFlag rhs);
+    inline CastleFlag operator | (CastleFlag& lhs, CastleFlag rhs);
     
     class Board;
 
     // representing a move
     struct Move
     {
-        enum Flags : char {
-            Basic = 0,
-            EnPassant = 1,
-            Castle = 2,
-            DoublePush = 4,
-            PromoteQ = 8,
-            PromoteR = 16,
-            PromoteN = 32,
-            PromoteB = 64,
+        enum Flags : uint8_t {
+            Basic       = 0,
+            EnPassant   = 0b0000001,
+            Castle      = 0b0000010,
+            DoublePush  = 0b0000100,
+            PromoteQ    = 0b0001000,
+            PromoteR    = 0b0010000,
+            PromoteN    = 0b0100000,
+            PromoteB    = 0b1000000,
 
-            Promotion = 120 // All promotion flags set to test if move is a promotion
+            Promotion   = 0b1111000 // All promotion flags set to test if move is a promotion
         };
 
         Square origin;
         Square target;
-        Piece captured; // the piece that was originally on the target square, if e.p. then None
+        Piece captured; // the piece that was originally on the target square, if e.p. then Empty
         Flags flags;
 
         Move() :
-            origin(Square::InvalidSquare), target(Square::InvalidSquare), captured(Piece::None), flags(Flags::Basic)
+            origin(Square::InvalidSquare), target(Square::InvalidSquare), captured(Piece::Empty), flags(Flags::Basic)
         {}
 
-        Move(Square origin, Square target, Piece captured = Piece::None, Flags flags = Flags::Basic) :
+        Move(Square origin, Square target, Piece captured = Piece::Empty, Flags flags = Flags::Basic) :
             origin(origin), target(target), captured(captured), flags(flags)
         {}
 
         Move(Square origin, Square target, Flags flags) :
-            origin(origin), target(target), captured(Piece::None), flags(flags)
+            origin(origin), target(target), captured(Piece::Empty), flags(flags)
         {}
     };
 
     struct BitBoard
     {
-        long long bits;
+        //static const BitBoard AFile, HFile;
+
+        uint64_t bits;
 
         BitBoard() : bits(0) {}
+        BitBoard(uint64_t bitboard) : bits(bitboard) {}
 
-        inline void Set(long long mask, bool state) {
-            if (state)
-                bits |= mask;
-            else
-                bits &= ~(mask);
-        }
+        inline void Set(uint64_t mask, bool state);
+        inline void Set(Square square, bool state);
 
-        inline void Set(Square square, bool state) {
-            Set((long long)(1LL << (long long)square), state);
-        }
+        inline long long Get(uint64_t mask) const;
+        inline bool Get(Square square) const;
 
-        inline long long Get(long long mask) const {
-            return bits & mask;
-        }
-
-        inline bool Get(Square square) const {
-            return Get((long long)(1LL << (long long)square));
-        }
+        inline BitBoard& operator |= (const BitBoard& other);
+        inline BitBoard operator | (const BitBoard& other) const;
     };
 }
+
+#include "BasicTypes.inl"

@@ -1,6 +1,7 @@
 #include "ZobristHash.h"
 
 #include "Board.h"
+#include "BasicTypes.h"
 
 namespace GGChess
 {
@@ -45,7 +46,7 @@ namespace GGChess
 
 	void ZobristHash::piece(Piece piece, Square square) {
 		size_t
-			tIdx = sideof(piece) == Side::White ? 0 : 1,
+			tIdx = (sideof(piece) == Side::White ? 0 : 1),
 			pIdx = (size_t)pieceof(piece),
 			sIdx = (size_t)square;
 
@@ -69,7 +70,7 @@ namespace GGChess
 		currentKey = 0;
 
 		for (size_t i = 0; i < BOARD_SQUARE_COUNT; i++)
-			if (pieceof(board[i]) != Piece::None)
+			if (board[i] != Piece::Empty)
 				piece(board[i], (Square)i);
 
 		castle(board.GetCastleState());

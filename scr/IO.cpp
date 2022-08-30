@@ -44,13 +44,13 @@ namespace GGChess
 		char c;
 
 		switch (pieceof(piece)) {
-		case GGChess::Piece::King: c = 'k'; break;
-		case GGChess::Piece::Queen: c = 'q'; break;
-		case GGChess::Piece::Bishop: c = 'b'; break;
-		case GGChess::Piece::Knight: c = 'n'; break;
-		case GGChess::Piece::Rook: c = 'r'; break;
-		case GGChess::Piece::Pawn: c = 'p'; break;
-		case GGChess::Piece::None: c = ' '; break;
+		case GGChess::PieceType::King: c = 'k'; break;
+		case GGChess::PieceType::Queen: c = 'q'; break;
+		case GGChess::PieceType::Bishop: c = 'b'; break;
+		case GGChess::PieceType::Knight: c = 'n'; break;
+		case GGChess::PieceType::Rook: c = 'r'; break;
+		case GGChess::PieceType::Pawn: c = 'p'; break;
+		case GGChess::PieceType::None: c = ' '; break;
 		default: throw std::invalid_argument("piece was not a valid type"); break;
 		}
 		if (sideof(piece) == GGChess::Side::White)
@@ -61,15 +61,15 @@ namespace GGChess
 
 	Piece char_to_piece(char c)
 	{
-		Piece p;
+		PieceType p;
 
 		switch (std::tolower(c)) {
-		case 'k': p = Piece::King; break;
-		case 'q': p = Piece::Queen; break;
-		case 'b': p = Piece::Bishop; break;
-		case 'n': p = Piece::Knight; break;
-		case 'r': p = Piece::Rook; break;
-		case 'p': p = Piece::Pawn; break;
+		case 'k': p = PieceType::King; break;
+		case 'q': p = PieceType::Queen; break;
+		case 'b': p = PieceType::Bishop; break;
+		case 'n': p = PieceType::Knight; break;
+		case 'r': p = PieceType::Rook; break;
+		case 'p': p = PieceType::Pawn; break;
 		default: throw std::invalid_argument("Invalid piece notation"); break;
 		}
 		Side side = std::isupper(c) ? Side::White : Side::Black;

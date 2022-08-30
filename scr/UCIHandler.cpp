@@ -73,7 +73,7 @@ namespace GGChess
 
 	static void ExecuteGo(std::stringstream& stream)
 	{
-		Move best = FindBestMove(threadPool, internalBoard, 7);
+		Move best = FindBestMove(threadPool, internalBoard, 6);
 
 		std::cout << "bestmove " << best << std::endl;
 		std::cout << "info evaluated" << std::endl;
@@ -129,6 +129,14 @@ namespace GGChess
 		ShearchBruteForce(depth, internalBoard);
 	}
 
+	static void PrintCaptures() {
+		MoveList moves;
+		GetAllCaptures(internalBoard, internalBoard.GetPosInfo(), moves);
+		for (Move& move : moves) {
+			std::cout << std::toString(move) << " " << BadCapture(internalBoard, move) << std::endl;
+		}
+	}
+
 	static void ExecuteCommand(const std::string& line)
 	{
 		std::stringstream stream(line);
@@ -149,6 +157,10 @@ namespace GGChess
 			ExecuteGo(stream);
 		else if (first == "perft")
 			Perft(stream);
+		else if (first == "eval")
+			std::cout << "Position evaluation: " << EvaluatePos(internalBoard, internalBoard.GetPosInfo()) << std::endl;
+		else if (first == "captures")
+			PrintCaptures();
 	}
 
 	void UCIMain()

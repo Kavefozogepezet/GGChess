@@ -12,10 +12,10 @@ namespace GGChess
 		for (size_t i = 0; i < 8; i++) {
 			Square target = square + knightMoves[i];
 
-			if (!validSquare(target))
+			if (!validsquare(target))
 				continue;
 
-			int
+			int8_t
 				deltaRank = std::abs(rankof(square) - rankof(target)),
 				deltaFile = std::abs(fileof(square) - fileof(target));
 
@@ -28,21 +28,21 @@ namespace GGChess
 	}
 
 	template<typename Func>
-	void SlidingPiecePattern(Square square, Piece piece, Func func)
+	void SlidingPiecePattern(Square square, PieceType piece, Func func)
 	{
 		static SDir const directions[8] = { SDir::N, SDir::NE, SDir::E, SDir::SE, SDir::S, SDir::SW, SDir::W, SDir::NW };
 
-		int
+		int8_t
 			rank = rankof(square),
 			file = fileof(square),
 			ndis = 7 - rank,
 			edis = 7 - file;
 
-		int dist[8] = { ndis, std::min(ndis, edis), edis, std::min(edis, rank), rank, std::min(rank, file), file, std::min(file, ndis) };
+		int8_t dist[8] = { ndis, std::min(ndis, edis), edis, std::min(edis, rank), rank, std::min(rank, file), file, std::min(file, ndis) };
 		int first = 0, step = 1;
 
-		if (piece == Piece::Bishop) { first = 1; step = 2; }
-		else if (piece == Piece::Rook) { step = 2; }
+		if (piece == PieceType::Bishop) { first = 1; step = 2; }
+		else if (piece == PieceType::Rook) { step = 2; }
 
 		for (int i = first; i < 8; i += step)
 		{
@@ -59,13 +59,13 @@ namespace GGChess
 	template<typename Func>
 	void PawnPattern(Square square, Side side, Func func, bool attackOnly = false)
 	{
-		char baseRank = side == Side::White ? 1 : 6;
-		char topRank = side == Side::White ? 7 : 0;
+		int8_t baseRank = side == Side::White ? 1 : 6;
+		int8_t topRank = side == Side::White ? 7 : 0;
 
 		if (topRank == rankof(square))
 			return;
 
-		int file = fileof(square);
+		int8_t file = fileof(square);
 		SDir dir = side == Side::White ? SDir::N : SDir::S;
 
 		if (!attackOnly)

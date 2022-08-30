@@ -74,8 +74,14 @@
     <ClInclude Include="include\ZobristHash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\FastArray.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="include\MovePatterns.h" />
+    <None Include="include\BasicTypes.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

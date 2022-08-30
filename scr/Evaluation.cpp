@@ -10,6 +10,7 @@
 #include "Board.h"
 #include "MoveGenerator.h"
 #include "ThreadPool.h"
+#include "MovePatterns.h"
 
 #define MOVE_ORDERING
 #define ITERATIVE_DEEPENING
@@ -40,24 +41,10 @@ namespace GGChess
 		return square ^ 56;
 	}
 
-	static inline Value GetPieceValue(Piece piece)
-	{
-		//std::cout << (int)piece << std::endl;
-		switch (piece) {
-		case Piece::Pawn: return 100;
-		case Piece::Bishop: return 350;
-		case Piece::Knight: return 350;
-		case Piece::Rook: return 525;
-		case Piece::Queen: return 1000;
-		case Piece::King: return 0;
-		default: throw std::invalid_argument("Piece was invalid");
-		}
-	}
-
 	Value EvaluatePos(Board& board, const PosInfo& pos)
 	{
-		/*if (transposTable.at(board.GetPosKey() % TABLE_SIZE))
-			return 0;*/
+		if (transposTable.at(board.GetPosKey() % TABLE_SIZE))
+			return 0;
 
 		Value mgScore = 0, egScore = 0;
 		Value materialScore = 0;
@@ -65,9 +52,9 @@ namespace GGChess
 
 		for (int i = 0; i < 64; i++) {
 			Piece p = board[(Square)i];
-			Piece pt = pieceof(p);
+			PieceType pt = pieceof(p);
 
-			if (pt == Piece::None)
+			if (p == Piece::Empty)
 				continue;
 
 			Side ps = sideof(p);
@@ -77,7 +64,7 @@ namespace GGChess
 			phase += phaseInc[(int)pt];
 
 			// piece value sum
-			Value pieceValue = GetPieceValue(pt);
+			Value pieceValue = valueof(pt);
 			materialScore += pieceValue * persp;
 
 			// piece square table
@@ -104,25 +91,25 @@ namespace GGChess
 			scores[i] = 0;
 			const Move& move = moves[i];
 
-			if (move.captured != Piece::None) {
+			if (move.captured != Piece::Empty) {
 				scores[i] +=
-					10 * GetPieceValue(pieceof(move.captured)) -
-					GetPieceValue(pieceof(board[move.origin]));
+					10 * valueof(move.captured) -
+					valueof(board[move.origin]);
 			}
 
 			if (move.flags & Move::Flags::Promotion) {
 				switch (move.flags) {
-				case Move::Flags::PromoteQ: scores[i] += GetPieceValue(Piece::Queen); break;
-				case Move::Flags::PromoteR: scores[i] += GetPieceValue(Piece::Rook); break;
-				case Move::Flags::PromoteN: scores[i] += GetPieceValue(Piece::Knight); break;
-				case Move::Flags::PromoteB: scores[i] += GetPieceValue(Piece::Bishop); break;
+				case Move::Flags::PromoteQ: scores[i] += valueof(PieceType::Queen); break;
+				case Move::Flags::PromoteR: scores[i] += valueof(PieceType::Rook); break;
+				case Move::Flags::PromoteN: scores[i] += valueof(PieceType::Knight); break;
+				case Move::Flags::PromoteB: scores[i] += valueof(PieceType::Bishop); break;
 				}
 			}
 		}
 
 		for (size_t i = 0; i < moves.size() - 1; i++) {
 			for (size_t j = i + 1; j > 0; j--) {
-				int swapIndex = j - 1;
+				size_t swapIndex = j - 1;
 				if (scores[swapIndex] < scores[j]) {
 					Move mtemp = moves[j];
 					moves[j] = moves[swapIndex];
@@ -134,6 +121,99 @@ namespace GGChess
 				}
 			}
 		}
+	}
+
+	bool BadCapture(Board& board, Move& move)
+	{
+		Piece moving = board[move.origin];
+		PieceType
+			mt = pieceof(moving),
+			ct = pieceof(move.captured);
+
+		if (pieceof(moving) == PieceType::Pawn)
+			return false;
+
+		if (valueof(mt) - 50 <= valueof(ct))
+			return false;
+
+		bool defendedByPawn = false;
+		PawnPattern(move.target, sideof(moving), [&](Square target, bool attack) {
+			Piece tp = board[target];
+			if (pieceof(tp) == PieceType::Pawn && sideof(tp) != sideof(moving))
+				defendedByPawn = true;
+			return true;
+			}, true);
+
+		if (defendedByPawn && valueof(ct) + 200 < valueof(mt))
+			return true;
+
+		if (valueof(ct) + 500 < valueof(mt)) {
+			bool isAttacked = false;
+
+			KnightPattern(move.target, [&](Square target) {
+				if (pieceof(board[target]) == PieceType::Knight && sideof(board[target]) == sideof(move.captured)) {
+					isAttacked = true;
+					return false;
+				}
+				return true;
+				});
+
+			SlidingPiecePattern(move.target, PieceType::Bishop, [&](Square target, int rayIdx) {
+				Piece targetPiece = board[target];
+
+				if (isAttacked)
+					return false;
+
+				if (targetPiece != Piece::Empty) {
+					if (sideof(targetPiece) == sideof(move.captured) && pieceof(targetPiece) == PieceType::Bishop) {
+						isAttacked = true;
+					}
+					return false;
+				}
+				return true;
+				});
+
+			if (isAttacked)
+				return true;
+		}
+
+		return false;
+	}
+
+	static Value QuiesceSearch(Board& board, const PosInfo& info, Value alpha, Value beta)
+	{
+		Value eval = EvaluatePos(board, info);
+		Value standPat = eval;
+
+		if (eval >= beta)
+			return beta;
+
+		if (alpha < eval)
+			alpha = eval;
+
+		MoveList moves;
+		GetAllCaptures(board, info, moves);
+#ifdef MOVE_ORDERING
+		OrderMoves(board, moves);
+#endif
+
+		for (Move& move : moves) {
+			board.PlayMove(move);
+			eval = -QuiesceSearch(board, board.GetPosInfo(), -beta, -alpha);
+			board.UnplayMove();
+
+			if (BadCapture(board, move) &&
+				pieceof(move.captured) != PieceType::Pawn && // TODO can simplify
+				!(move.flags & Move::Flags::Promotion))
+				continue;
+
+			if (eval > alpha) {
+				if (eval >= beta)
+					return beta;
+				alpha = eval;
+			}
+		}
+		return alpha;
 	}
 
 	static Value EvaluationHelper(Board& board, const PosInfo& info, int depth, Value alpha, Value beta)
@@ -188,7 +268,7 @@ namespace GGChess
 		}
 	};
 
-	Move FindBestMove(ThreadPool& pool, Board& board, int depth)
+	Move FindBestMove(ThreadPool& pool, Board& board, int depth) // TODO size_t depth
 	{
 		if (depth < 1)
 			throw std::invalid_argument("depth must be minimum 1");

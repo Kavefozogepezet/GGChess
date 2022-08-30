@@ -10,8 +10,6 @@ namespace GGChess
 	struct PosInfo;
 	class ThreadPool;
 
-	typedef int Value;
-
 	extern const Value MAX_VALUE, MIN_VALUE;
 
 	extern const int phaseInc[7];
@@ -44,4 +42,6 @@ namespace GGChess
 	Value Evaluate(Board& board, const PosInfo& info, int depth);
 
 	Move FindBestMove(ThreadPool& pool, Board& board, int depth);
+
+	bool BadCapture(Board& board, Move& move);
 }

@@ -7,6 +7,7 @@
 
 #include "BasicTypes.h"
 #include "ZobristHash.h"
+#include "FastArray.h"
 
 namespace GGChess
 {
@@ -54,21 +55,16 @@ namespace GGChess
         const Piece& at(Square square) const;
         const Piece& at(size_t idx) const;
 
-        Square GetKing(Side side) const;
-
+        int GetHalfMoves() const;
         Side GetTurn() const;
-
+        Square GetKing(Side side) const;
         const std::array<Piece, 64>& GetBoard() const;
-
         Square GetEnPassantTarget() const;
-
-        bool CanCastle(CastleFlag flag) const;
-        CastleFlag GetCastleState() const;
-
         PosInfo GetPosInfo() const;
         ZobristKey GetPosKey() const;
+        CastleFlag GetCastleState() const;
 
-        int GetHalfMoves() const;
+        bool CanCastle(CastleFlag flag) const;
 
         void SetThisAsStart();
     private:
@@ -88,10 +84,8 @@ namespace GGChess
 
         int halfmove_count;
     public:
-        std::vector<MoveData> moveList;
+        FastArray<MoveData, MAX_DEPTH> moveRecord;
     private:
-        Move poppedLast;
-
         void PlacePiece(Square square, Piece piece);
         void RemovePiece(Square square);
 

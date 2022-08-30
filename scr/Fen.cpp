@@ -16,10 +16,11 @@ namespace GGChess
 	void Fen::Set(Board& board, std::istream& stream)
 	{
 		for (size_t i = 0; i < 64; i++)
-			board.board[i] = Piece::None;
+			board.board[i] = Piece::Empty;
 		
 		std::string sec1, sec2, sec3;
-		stream >> sec1 >> sec2 >> sec3 >> board.ep_start;
+		int valami; // TODO halfmove, passive move input
+		stream >> sec1 >> sec2 >> sec3 >> board.ep_start >> valami >> valami;
 		board.ep_target = board.ep_start;
 
 		int file = 0, rank = 7;
@@ -44,10 +45,10 @@ namespace GGChess
 
 		CastleFlag castle = (CastleFlag)0;
 		size_t end = std::string::npos;
-		if (sec3.find('Q') != end) castle = (CastleFlag)(castle | CastleFlag::WhiteQueenside);
-		if (sec3.find('K') != end) castle = (CastleFlag)(castle | CastleFlag::WhiteKingside);
-		if (sec3.find('q') != end) castle = (CastleFlag)(castle | CastleFlag::BlackQueenside);
-		if (sec3.find('k') != end) castle = (CastleFlag)(castle | CastleFlag::BlackKingside);
+		if (sec3.find('Q') != end) castle |= CastleFlag::WhiteQueenside;
+		if (sec3.find('K') != end) castle |= CastleFlag::WhiteKingside;
+		if (sec3.find('q') != end) castle |= CastleFlag::BlackQueenside;
+		if (sec3.find('k') != end) castle |= CastleFlag::BlackKingside;
 		board.castling = castle;
 	}
 
