@@ -350,6 +350,52 @@ namespace GGChess
 		for (BitBoard& pin : info.pinBoards)
 			info.unifiedPinBoard.Set(pin.bits, true);
 
+		// attack board
+		BitBoard pb;
+
+		for (int8_t i = 0; i < BOARD_SQUARE_COUNT; i++) {
+			Piece p = board[i];
+
+			if (p == Piece::Empty || sideof(p) != attacker)
+				continue;
+
+			switch (pieceof(p)) {
+			case PieceType::Pawn:
+				pb.Set(Square(i), true);
+				break;
+			case PieceType::Knight:
+				KnightPattern(Square(i), [&](Square target) {
+					info.attackBoard.Set(target, true);
+					return true;
+					});
+				break;
+			case PieceType::King:
+				SlidingPiecePattern(Square(i), PieceType::Queen, [&](Square target, int rayIdx) {
+					info.attackBoard.Set(target, true);
+					return false;
+					});
+				break;
+			case PieceType::Bishop:
+			case PieceType::Rook:
+			case PieceType::Queen:
+				SlidingPiecePattern(Square(i), pieceof(p), [&](Square target, int rayIdx) {
+					info.attackBoard.Set(target, true);
+					return (board[target] == Piece::Empty) || target == GetKing(turn);
+					});
+				break;
+			}
+		}
+
+		const uint64_t
+			fileA = 0x0101010101010101ULL,
+			fileH = fileA << 7;
+
+		BitBoard pawnattack = attacker == Side::White ?
+			(pb.bits & ~fileA) << 7 | (pb.bits & ~fileH) << 9 :
+			(pb.bits & ~fileA) >> 9 | (pb.bits & ~fileH) >> 7;
+
+		info.attackBoard.Set(pawnattack.bits, true);
+
 		return info;
 	}
 

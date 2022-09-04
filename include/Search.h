@@ -3,12 +3,26 @@
 #include "BasicTypes.h"
 
 #include <array>
+#include <chrono>
 
 namespace GGChess
 {
 	class Board;
 	struct PosInfo;
-	class ThreadPool;
+
+	struct SearchData {
+		using clock = typename std::chrono::steady_clock;
+
+		uint64_t nodes;
+		uint64_t qnodes;
+		uint64_t aspf;
+		clock::time_point start;
+
+		void reset();
+		int64_t elapsed();
+	};
+
+	extern SearchData sdata;
 
 	extern const Value MAX_VALUE, MIN_VALUE;
 
@@ -30,18 +44,15 @@ namespace GGChess
 	{
 		Move myMove;
 		Value score;
-		Value prevScore;
 
-		RootMove(const Move& move);
+		RootMove(const Move& move = Move(), Value score = MIN_VALUE);
 
 		bool operator < (const RootMove& other) const;
 	};
 
-	Value EvaluatePos(Board& board, const PosInfo& info);
+	Value Evaluate(Board& board, const PosInfo& info);
 
-	Value Evaluate(Board& board, const PosInfo& info, int depth);
-
-	Move FindBestMove(ThreadPool& pool, Board& board, int depth);
+	Move Search(Board& board, size_t depth);
 
 	bool BadCapture(Board& board, Move& move);
 }

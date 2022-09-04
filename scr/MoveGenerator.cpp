@@ -15,30 +15,60 @@ namespace GGChess
 
 	bool AddIfLegal(Board& board, const PosInfo& info, const Move& move, MoveList& moves)
 	{
-		bool kingIsMoving = move.origin == board.GetKing(board.GetTurn());
+		Square
+			epPawn = board.GetEnPassantTarget() + (board.GetTurn() == Side::White ? SDir::S : SDir::W),
+			king = board.GetKing(board.GetTurn());
+		bool kingIsMoving = move.origin == king;
+
 		if (info.doubleCheck && !kingIsMoving)
 			return false;
 
-		if (move.flags == Move::Flags::EnPassant || move.origin == board.GetKing(board.GetTurn())) {
-			board.PlayMove(move);
-
-			Square kingSquare = board.GetKing(otherside(board.GetTurn()));
-			bool legalFlag = false;
-
-			if (!IsSquareAttacked(board, info, kingSquare, board.GetTurn()))
-				legalFlag = true;
-
-			board.UnplayMove();
-
-			if (legalFlag)
+		if (move.origin == board.GetKing(board.GetTurn())) {
+			if (info.attackBoard.Get(move.target))
+				return false;
+			else {
 				moves.push_back(move);
-
-			return legalFlag;
+				return true;
+			}
 		}
+		
+		if (move.flags == Move::Flags::EnPassant) {
+			uint8_t
+				abs_dr = std::abs(rankof(epPawn) - rankof(king)),
+				abs_df = std::abs(fileof(epPawn) - fileof(king));
+
+			bool diag = abs_dr == abs_df;
+
+			if (diag || abs_dr == 0) { // the king can be attacked by sliding piece behind epPawn
+				SDir dir = SDir((epPawn - king) / std::max(abs_dr, abs_df));
+				Square target = king + dir;
+				while (fileof(target) != 0 && fileof(target) != 7 && validsquare(target)) {
+					Piece tp = board[target];
+					if (tp == Piece::Empty || target == move.origin)
+						target = target + dir;
+					else if (sideof(tp) == board.GetTurn())
+						break;
+					else {
+						PieceType tpt = pieceof(tp);
+						if (tpt == PieceType::Queen ||
+							(tpt == PieceType::Bishop && diag) ||
+							(tpt == PieceType::Rook && !diag)) {
+							return false;
+						}
+						else
+							break;
+					}
+				}
+			}
+		}
+
 		if (info.check) {
-			if (!info.checkBoard.Get(move.target))
+			if (!info.checkBoard.Get(move.target) && // the move blocks the check
+				!(move.flags == Move::Flags::EnPassant && // the move captures en passant the checking pawn
+					info.checkBoard.Get(epPawn)))
 				return false;
 		}
+
 		if (info.unifiedPinBoard.Get(move.origin)) {
 			for (BitBoard pin : info.pinBoards) {
 				if (!pin.Get(move.origin))
@@ -122,57 +152,6 @@ namespace GGChess
 		}
 	}
 
-	void GeneratePawnMoves(Board& board, const PosInfo& info, Square square, Side side, MoveList& moves)
-	{
-		PawnPattern(square, side, [&](Square target, bool attack) {
-			Piece targetPiece = board[target];
-			if (attack) {
-				if (targetPiece != Piece::Empty && sideof(targetPiece) != side)
-					AddWithPromotion(board, info, square, target, targetPiece, moves);
-				else if(target == board.GetEnPassantTarget())
-					AddIfLegal(board, info, Move(square, target, Move::EnPassant), moves);
-			}
-			else {
-				if (targetPiece != Piece::Empty)
-					return false;
-				if(std::abs(target - square) == 16)
-					AddIfLegal(board, info, Move(square, target, Move::DoublePush), moves);
-				else
-					AddWithPromotion(board, info, square, target, targetPiece, moves);
-			}
-			return true;
-			});
-	}
-
-	void GenerateKnightMoves(Board& board, const PosInfo& info, Square square, Side side, MoveList& moves)
-	{
-		KnightPattern(square, [&](Square target) {
-			if (board[target] == Piece::Empty || sideof(board[target]) != side)
-				AddIfLegal(board, info, Move(square, target, board[target]), moves);
-			return true;
-			});
-	}
-
-	void GenerateSlidingPieceMoves(Board& board, const PosInfo& info, Square square, Piece piece, MoveList& moves)
-	{
-		Side side = sideof(piece);
-		PieceType type = pieceof(piece);
-
-		SlidingPiecePattern(square, type, [&](Square target, int rayIdx) {
-			Piece targetPiece = board[target];
-
-			if (targetPiece == Piece::Empty)
-				AddIfLegal(board, info, Move(square, target), moves);
-			else if (sideof(targetPiece) == side)
-				return false;
-			else if (sideof(targetPiece) != side) {
-				AddIfLegal(board, info, Move(square, target, board[target]), moves);
-				return false;
-			}
-			return true;
-			});
-	}
-
 	void GenerateKingMoves(Board& board, const PosInfo& info, Square square, Side side, MoveList& moves)
 	{
 		int
@@ -182,7 +161,7 @@ namespace GGChess
 		int bounds[4] = { rank == 0 ? 0 : -1, rank == 7 ? 0 : 1, file == 0 ? 0 : -1, file == 7 ? 0 : 1, };
 
 		for (int dr = bounds[0]; dr <= bounds[1]; dr++) {
-			for (int df = bounds[2]; df <= bounds[3]; df++) {
+			for (int df = bounds[2]; df <= bounds[3]; df++) { 
 				if (dr == 0 && df == 0)
 					continue;
 
@@ -208,8 +187,8 @@ namespace GGChess
 					board[square + 2] == Piece::Empty;
 				if (emptyMid) {
 					bool noAttack =
-						!IsSquareAttacked(board, info, square + 1, attacker) &&
-						!IsSquareAttacked(board, info, square + 2, attacker);
+						!info.attackBoard.Get(square + 1) &&
+						!info.attackBoard.Get(square + 2);
 					if (noAttack)
 						moves.push_back(Move(square, square + 2, Move::Castle));
 				}
@@ -221,8 +200,8 @@ namespace GGChess
 					board[square - 3] == Piece::Empty;
 				if (emptyMid) {
 					bool noAttack =
-						!IsSquareAttacked(board, info, square - 1, attacker) &&
-						!IsSquareAttacked(board, info, square - 2, attacker);
+						!info.attackBoard.Get(square - 1) &&
+						!info.attackBoard.Get(square - 2);
 					if (noAttack)
 						moves.push_back(Move(square, square - 2, Move::Castle));
 				}
@@ -301,13 +280,55 @@ namespace GGChess
 		Side side = sideof(piece);
 
 		switch (pieceof(piece)) {
-		case PieceType::Pawn: GeneratePawnMoves(board, info, square, side, moves); break;
-		case PieceType::Knight: GenerateKnightMoves(board, info, square, side, moves); break;
-		case PieceType::King: GenerateKingMoves(board, info, square, side, moves); break;
+		case PieceType::Pawn:
+			PawnPattern(square, side, [&](Square target, bool attack) {
+				Piece targetPiece = board[target];
+				if (attack) {
+					if (targetPiece != Piece::Empty && sideof(targetPiece) != side)
+						AddWithPromotion(board, info, square, target, targetPiece, moves);
+					else if (target == board.GetEnPassantTarget())
+						AddIfLegal(board, info, Move(square, target, Move::EnPassant), moves);
+				}
+				else {
+					if (targetPiece != Piece::Empty)
+						return false;
+					if (std::abs(target - square) == 16)
+						AddIfLegal(board, info, Move(square, target, Move::DoublePush), moves);
+					else
+						AddWithPromotion(board, info, square, target, targetPiece, moves);
+				}
+				return true;
+				});
+			break;
+		case PieceType::Knight:
+			KnightPattern(square, [&](Square target) {
+				if (board[target] == Piece::Empty || sideof(board[target]) != side)
+					AddIfLegal(board, info, Move(square, target, board[target]), moves);
+				return true;
+				});
+			break;
+		case PieceType::King:
+			GenerateKingMoves(board, info, square, side, moves);
+			break;
 		case PieceType::Rook:
 		case PieceType::Bishop:
 		case PieceType::Queen:
-			GenerateSlidingPieceMoves(board, info, square, piece, moves); break;
+			Side side = sideof(piece);
+
+			SlidingPiecePattern(square, pieceof(piece), [&](Square target, int rayIdx) {
+				Piece targetPiece = board[target];
+
+				if (targetPiece == Piece::Empty)
+					AddIfLegal(board, info, Move(square, target), moves);
+				else if (sideof(targetPiece) == side)
+					return false;
+				else if (sideof(targetPiece) != side) {
+					AddIfLegal(board, info, Move(square, target, board[target]), moves);
+					return false;
+				}
+				return true;
+				});
+			break;
 		}
 	}
 }

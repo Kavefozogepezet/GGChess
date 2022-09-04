@@ -86,7 +86,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="scr\Evaluation.cpp" />
+    <ClCompile Include="scr\Search.cpp" />
     <ClCompile Include="scr\Fen.cpp" />
     <ClCompile Include="GGChess.cpp" />
     <ClCompile Include="scr\MoveGenerator.cpp" />
@@ -96,9 +96,10 @@
     <ClCompile Include="scr\UCIHandler.cpp" />
     <ClCompile Include="scr\ThreadPool.cpp" />
     <ClCompile Include="scr\ZobristHash.cpp" />
+    <ClCompile Include="scr\TransposTable.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\Evaluation.h" />
+    <ClInclude Include="include\Search.h" />
     <ClInclude Include="include\Fen.h" />
     <ClInclude Include="include\BasicTypes.h" />
     <ClInclude Include="include\Board.h" />
@@ -108,6 +109,7 @@
     <ClInclude Include="include\UCIHandler.h" />
     <ClInclude Include="include\ThreadPool.h" />
     <ClInclude Include="include\ZobristHash.h" />
+    <ClInclude Include="include\TransposTable.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="include\BasicTypes.inl" />

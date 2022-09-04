@@ -42,7 +42,10 @@
     <ClCompile Include="scr\ZobristHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="scr\Evaluation.cpp">
+    <ClCompile Include="scr\Search.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="scr\TransposTable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -68,13 +71,16 @@
     <ClInclude Include="include\ThreadPool.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\Evaluation.h">
+    <ClInclude Include="include\Search.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\ZobristHash.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\FastArray.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\TransposTable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

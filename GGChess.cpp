@@ -12,6 +12,7 @@
 #include "Fen.h"
 #include "MoveGenerator.h"
 #include "ThreadPool.h"
+#include "TransposTable.h"
 
 #include "UCIHandler.h"
 
@@ -91,7 +92,7 @@ void ShearchBruteForce(int depth, Board& board, ThreadPool& pool)
         f.wait();
 
         pos += f.get();
-        std::cout << std::toString(moves[idx]) << ": " << f.get() << "\n";
+        std::cout << std::to_string(moves[idx]) << ": " << f.get() << "\n";
 
         idx++;
     }
@@ -115,7 +116,7 @@ void Play()
             board.UnplayMove();
 
         for (const Move& move : moves)
-            if (std::toString(move) == movestr)
+            if (std::to_string(move) == movestr)
                 board.PlayMove(move);
 
         system("cls");

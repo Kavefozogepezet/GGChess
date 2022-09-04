@@ -6,7 +6,7 @@
 
 namespace std
 {
-	std::string toString(GGChess::Square square) {
+	std::string to_string(GGChess::Square square) {
 		if (square == GGChess::Square::InvalidSquare)
 			return "X";
 
@@ -16,12 +16,12 @@ namespace std
 		return str;
 	}
 
-	std::string toString(GGChess::Piece piece)
+	std::string to_string(GGChess::Piece piece)
 	{
 		return std::string() + GGChess::piece_to_char(piece);
 	}
 
-	std::string toString(const GGChess::Move& move)
+	std::string to_string(const GGChess::Move& move)
 	{
 		char promote = 0;
 		if (move.flags & GGChess::Move::PromoteQ) promote = 'q';
@@ -29,7 +29,7 @@ namespace std
 		else if (move.flags & GGChess::Move::PromoteN) promote = 'n';
 		else if (move.flags & GGChess::Move::PromoteB) promote = 'b';
 
-		std::string str = toString(move.origin) + std::toString(move.target);
+		std::string str = to_string(move.origin) + std::to_string(move.target);
 		if (promote)
 			str += promote;
 
@@ -91,14 +91,14 @@ namespace GGChess
 		}
 		std::cout << std::endl << sep1 << std::endl << "   a   b   c   d   e   f   g   h" << std::endl;
 
-		std::cout << "e.p. target : " << std::toString(board.GetEnPassantTarget()) << "; castle : " << (unsigned int)board.GetCastleState() << std::endl;
+		std::cout << "e.p. target : " << std::to_string(board.GetEnPassantTarget()) << "; castle : " << (unsigned int)board.GetCastleState() << std::endl;
 
 		return stream;
 	}
 
 	std::ostream& operator << (std::ostream& stream, const Move& move)
 	{
-		stream << std::toString(move.origin) << std::toString(move.target);
+		stream << std::to_string(move.origin) << std::to_string(move.target);
 		switch (move.flags) {
 		case Move::Flags::PromoteQ: stream << 'q'; break;
 		case Move::Flags::PromoteR: stream << 'r'; break;

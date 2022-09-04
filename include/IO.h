@@ -6,9 +6,9 @@
 #include "Basictypes.h"
 
 namespace std {
-	std::string toString(GGChess::Square square);
-	std::string toString(GGChess::Piece piece);
-	std::string toString(const GGChess::Move& move);
+	std::string to_string(GGChess::Square square);
+	std::string to_string(GGChess::Piece piece);
+	std::string to_string(const GGChess::Move& move);
 }
 
 namespace GGChess

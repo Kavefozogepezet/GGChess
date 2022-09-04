@@ -9,20 +9,18 @@
 #include "Fen.h"
 #include "IO.h"
 #include "MoveGenerator.h"
-#include "Evaluation.h"
+#include "Search.h"
 #include "ThreadPool.h"
 
 namespace GGChess
 {
 	static const char* startpos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-	static ThreadPool threadPool;
-
 	static Board internalBoard;
 
 	static void PrintEngineData()
 	{
-		std::cout << "id name GGChess\nid author Kavefozogepezet\n\nuciok" << std::endl;
+		UCI_ID(GGChess, Kavefozogepezet);
 	}
 
 	static void ReadPosition(std::stringstream& stream)
@@ -68,17 +66,15 @@ namespace GGChess
 			}
 		}
 		internalBoard.SetThisAsStart();
-		std::cout << "info read position" << std::endl;
 	}
 
 	static void ExecuteGo(std::stringstream& stream)
 	{
-		Move best = FindBestMove(threadPool, internalBoard, 6);
-
-		std::cout << "bestmove " << best << std::endl;
-		std::cout << "info evaluated" << std::endl;
-		//internalBoard.PlayMove(*front);
+		Move best = Search(internalBoard, 7);
+		UCI_BESTMOVE(best);
 	}
+
+	// TODO MOVE THIS
 
 	int SearchHelper(int depth, Board& board) {
 		if (depth == 0)
@@ -115,7 +111,7 @@ namespace GGChess
 			board.PlayMove(move);
 			int subpos = SearchHelper(depth - 1, board);
 			pos += subpos;
-			std::cout << std::toString(move) << ": " << subpos << "\n";
+			std::cout << move << ": " << subpos << "\n";
 			board.UnplayMove();
 		}
 		std::cout << "\nfound positions: " << pos << std::endl;
@@ -133,7 +129,7 @@ namespace GGChess
 		MoveList moves;
 		GetAllCaptures(internalBoard, internalBoard.GetPosInfo(), moves);
 		for (Move& move : moves) {
-			std::cout << std::toString(move) << " " << BadCapture(internalBoard, move) << std::endl;
+			std::cout << std::to_string(move) << " " << BadCapture(internalBoard, move) << std::endl;
 		}
 	}
 
@@ -146,7 +142,7 @@ namespace GGChess
 		if (first == "uci")
 			PrintEngineData();
 		else if (first == "isready")
-			std::cout << "readyok" << std::endl;
+			UCI_READY;
 		else if (first == "ucinewgame")
 			internalBoard = Board();
 		else if (first == "d")
@@ -158,9 +154,11 @@ namespace GGChess
 		else if (first == "perft")
 			Perft(stream);
 		else if (first == "eval")
-			std::cout << "Position evaluation: " << EvaluatePos(internalBoard, internalBoard.GetPosInfo()) << std::endl;
+			std::cout << "Position evaluation: " << Evaluate(internalBoard, internalBoard.GetPosInfo()) << std::endl;
 		else if (first == "captures")
 			PrintCaptures();
+		else if (first == "info")
+			std::cout << internalBoard.GetPosInfo().attackBoard << std::endl;
 	}
 
 	void UCIMain()
@@ -171,5 +169,15 @@ namespace GGChess
 			std::getline(std::cin, input);
 			ExecuteCommand(input);
 		}
+	}
+	void printSearchData(size_t depth, SearchData& sdata, RootMove& best)
+	{
+		UCI_INFO << "depth " << depth <<
+			" score cp " << best.score <<
+			" nodes " << sdata.nodes <<
+			" qnodes " << sdata.qnodes <<
+			" time " << sdata.elapsed() <<
+			" asp_fail " << sdata.aspf <<
+			" pv " << best.myMove << std::endl;
 	}
 }

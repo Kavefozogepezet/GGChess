@@ -1,8 +1,7 @@
-#include "Evaluation.h"
+#include "Search.h"
 
 #include <stdexcept>
 #include <limits>
-#include <future>
 
 #include <iostream>
 #include "IO.h"
@@ -11,13 +10,28 @@
 #include "MoveGenerator.h"
 #include "ThreadPool.h"
 #include "MovePatterns.h"
-
-#define MOVE_ORDERING
-#define ITERATIVE_DEEPENING
+#include "TransposTable.h"
+#include "UCIHandler.h"
 
 namespace GGChess
 {
-	static std::array<uint8_t, TABLE_SIZE> transposTable;
+
+	void SearchData::reset() {
+		nodes = 0;
+		qnodes = 0;
+		aspf = 0;
+		start = clock::now();
+	}
+
+	int64_t SearchData::elapsed() {
+		clock::duration e = clock::now() - start;
+		return std::chrono::duration_cast<std::chrono::milliseconds>(e).count();
+	}
+
+	SearchData sdata;
+
+
+	static std::array<uint8_t, TABLE_SIZE> prevPosTable; // TODO Rewrite this mess
 
 	const Value
 		MAX_VALUE = std::numeric_limits<Value>::max(),
@@ -25,26 +39,24 @@ namespace GGChess
 
 	const int phaseInc[7] = { 0, 0, 4, 1, 1, 2, 0 };
 
-	RootMove::RootMove(const Move& move) :
+	RootMove::RootMove(const Move& move, Value score) :
 		myMove(move),
-		score(MIN_VALUE),
-		prevScore(MIN_VALUE)
+		score(score)
 	{}
 
 	bool RootMove::operator < (const RootMove& other) const {
-		return score != other.score ?
-			score > other.score :
-			prevScore > other.prevScore;
+		return score > other.score;
 	}
 
 	static inline int Flip(int square) {
 		return square ^ 56;
 	}
 
-	Value EvaluatePos(Board& board, const PosInfo& pos)
+	Value Evaluate(Board& board, const PosInfo& pos)
 	{
-		if (transposTable.at(board.GetPosKey() % TABLE_SIZE))
-			return 0;
+		SimpleTTEntry ttentry;
+		if (tpostable.evaltt_probe(board.GetPosKey(), ttentry))
+			return ttentry.eval;
 
 		Value mgScore = 0, egScore = 0;
 		Value materialScore = 0;
@@ -77,7 +89,9 @@ namespace GGChess
 		phase = std::min(phase, 24);
 		Value phaseScore = (mgScore * phase + egScore * (24 - phase)) / 24;
 
-		return materialScore + phaseScore;
+		Value finalScore = materialScore + phaseScore;
+		tpostable.evaltt_save(board.GetPosKey(), finalScore);
+		return finalScore;
 	}
 
 	static void OrderMoves(Board& board, MoveList& moves)
@@ -182,7 +196,10 @@ namespace GGChess
 
 	static Value QuiesceSearch(Board& board, const PosInfo& info, Value alpha, Value beta)
 	{
-		Value eval = EvaluatePos(board, info);
+		sdata.nodes++;
+		sdata.qnodes++;
+		
+		Value eval = Evaluate(board, info);
 		Value standPat = eval;
 
 		if (eval >= beta)
@@ -193,9 +210,7 @@ namespace GGChess
 
 		MoveList moves;
 		GetAllCaptures(board, info, moves);
-#ifdef MOVE_ORDERING
 		OrderMoves(board, moves);
-#endif
 
 		for (Move& move : moves) {
 			board.PlayMove(move);
@@ -216,16 +231,28 @@ namespace GGChess
 		return alpha;
 	}
 
-	static Value EvaluationHelper(Board& board, const PosInfo& info, int depth, Value alpha, Value beta)
+	static Value SearchHelper(Board& board, const PosInfo& info, int depth, Value alpha, Value beta)
 	{
+		tpostable.prefetch(board.GetPosKey());
+
+		prevPosTable.at(board.GetPosKey() % TABLE_SIZE)++; // TODO better repetition test
+
+		if (info.check) // Do not evaluate when in check to prevent false result
+			depth++;
+
 		if (depth <= 0)
-			return EvaluatePos(board, info);
+			return QuiesceSearch(board, info, alpha, beta); // search until no capture
+			//return EvaluatePos(board, info);
+
+		sdata.nodes++;
+
+		TTEntry ttentry;
+		if (tpostable.probe(board.GetPosKey(), depth, alpha, beta, ttentry))
+			return ttentry.eval; // TODO when pv node
 
 		MoveList moves;
 		GetAllMoves(board, info, moves);
-#ifdef MOVE_ORDERING
 		OrderMoves(board, moves);
-#endif
 
 		if (moves.size() == 0) {
 			if (info.check)
@@ -233,114 +260,98 @@ namespace GGChess
 			return 0;
 		}
 
+		TTFlag flag = TTFlag::Alpha;
+		Move bestmove = moves[0];
+
 		for (const Move& move : moves) {
 			board.PlayMove(move);
-			Value eval = -EvaluationHelper(board, board.GetPosInfo(), depth - 1, -beta, -alpha);
+			Value eval = -SearchHelper(board, board.GetPosInfo(), depth - 1, -beta, -alpha);
 			board.UnplayMove();
 
-			if (eval >= beta)
-				return beta;
-			if (eval > alpha)
+			if (eval > alpha) {
+				bestmove = move;
+
+				if (eval >= beta) {
+					flag = TTFlag::Beta;
+					alpha = beta;
+					break;
+				}
+				flag = TTFlag::Exact;
 				alpha = eval;
+			}
 		}
+
+		tpostable.save(board.GetPosKey(), depth, alpha, flag, bestmove);
 		return alpha;
 	}
 
-	Value Evaluate(Board& board, const PosInfo& info, int depth) {
-		transposTable.at(board.GetPosKey() % TABLE_SIZE)++;
-
-		return EvaluationHelper(
-			board, info, depth, MIN_VALUE, MAX_VALUE
-		);
-	}
-
-	struct EvalThread
+	RootMove SearchRoot(Board& board, size_t depth, Value alpha, Value beta)
 	{
-		Board board;
-		int depth;
+		PosInfo info = board.GetPosInfo();
+		RootMove best;
 
-		EvalThread(Board& board, int depth) :
-			board(board), depth(depth)
-		{}
+		if (info.check)
+			++depth; // extend search to avoid evaluating position when in check
 
-		Value operator() () {
-			return Evaluate(board, board.GetPosInfo(), depth);
-		}
-	};
-
-	Move FindBestMove(ThreadPool& pool, Board& board, int depth) // TODO size_t depth
-	{
-		if (depth < 1)
-			throw std::invalid_argument("depth must be minimum 1");
-
-		const PosInfo info = board.GetPosInfo();
 		MoveList moves;
-		GetAllMoves(board, info, moves);
-#ifdef MOVE_ORDERING
-		OrderMoves(board, moves);
-#endif
-		Value bestValue = MIN_VALUE;
-		Move bestMove;
+		GetAllMoves(board, board.GetPosInfo(), moves);
 
-#ifdef ITERATIVE_DEEPENING
+		if (moves.size() == 1)
+			return RootMove(moves[0]);
 
-		std::vector<RootMove> rootMoves;
-		rootMoves.reserve(moves.size());
-		for (const Move& move : moves)
-			rootMoves.push_back(RootMove(move));
+		OrderMoves(board, moves); // TODO relocate when pv ordering is done
 
-		for (size_t currDepth = 1; currDepth <= depth; currDepth++) {
-			Value alpha = MIN_VALUE, beta = MAX_VALUE;
-
-			for (RootMove& rootMove : rootMoves) {
-				rootMove.prevScore = rootMove.score;
-
-				board.PlayMove(rootMove.myMove);
-				rootMove.score = -EvaluationHelper(board, board.GetPosInfo(), currDepth, -beta, -alpha);
-				board.UnplayMove();
-
-				alpha = std::max(rootMove.score, alpha);
-			}
-			std::stable_sort(rootMoves.begin(), rootMoves.end());
-			std::cout << "info depth " << currDepth << " move " << std::toString(rootMoves[0].myMove) << std::endl;
-
-			bestMove = rootMoves[0].myMove;
-		}
-#else
-		std::vector<std::shared_future<Value>> futures;
-		futures.reserve(moves.size());
+		int i = 0;
 
 		for (const Move& move : moves) {
 			board.PlayMove(move);
-			/*
-			futures.push_back(
-				pool.submit<EvalThread, Value>(EvalThread(board, depth - 1))
-			);*/
-			
-			
-			Value res = -Evaluate(board, info, depth - 1);
-
-			if (bestValue < res) {
-				bestValue = res;
-				bestMove = move;
-			}
-			
+			Value eval = -SearchHelper(board, board.GetPosInfo(), depth - 1, -beta, -alpha);
 			board.UnplayMove();
-		}
 
-		/*
-		for (size_t i = 0; i < moves.size(); i++) {
-			futures[i].wait();
-			Value res = -futures[i].get();
-			//std::cout << res << std::endl;
-
-			if (bestValue < res) {
-				bestValue = res;
-				bestMove = moves[i];
+			if (eval > alpha) {
+				best = RootMove(move, eval);
+				if (eval > beta) {
+					tpostable.save(board.GetPosKey(), depth, eval, TTFlag::Beta, move);
+					return best;
+				}
 			}
-		}*/
-#endif
+			alpha = eval;
+			tpostable.save(board.GetPosKey(), depth, eval, TTFlag::Alpha, move);
+		}
+		tpostable.save(board.GetPosKey(), depth, alpha, TTFlag::Exact, best.myMove);
+		return best;
+	}
 
-		return bestMove;
+	Move Search(Board& board, size_t depth) // TODO size_t depth
+	{
+		sdata.reset();
+
+		RootMove move = SearchRoot(board, 1, MIN_VALUE, MAX_VALUE);
+		printSearchData(1, sdata, move);
+
+		for (size_t curr_depth = 2; curr_depth <= depth; curr_depth++)
+		{
+			Value delta = 50;
+
+			//while (true) {
+				Value
+					alpha = move.score - delta,
+					beta = move.score + delta;
+
+				move = SearchRoot(board, curr_depth, alpha, beta); // search with aspiration window
+				if (move.score <= alpha || move.score >= beta) {
+					//delta += delta / 4;
+					move = SearchRoot(board, curr_depth, MIN_VALUE, MAX_VALUE);
+					sdata.aspf++;
+				}
+				/*else {
+					break;
+				}*/
+			//}
+
+			printSearchData(curr_depth, sdata, move);
+		}
+		return move.myMove;
+
 	}
 }

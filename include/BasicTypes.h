@@ -10,7 +10,7 @@ namespace GGChess
     static const size_t BOARD_SQUARE_COUNT = BOARD_SIZE * BOARD_SIZE;
 
     static const size_t MAX_MOVES = 256;
-    static const size_t MAX_DEPTH = 16;
+    static const size_t MAX_DEPTH = 64;
     static const size_t TABLE_SIZE = 1048576;
 
     enum class Side : uint8_t
