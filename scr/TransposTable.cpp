@@ -12,16 +12,16 @@ namespace GGChess
 		tt(nullptr), ptt(nullptr), ett(nullptr)
 	{
 		resize(0x4000000);
-		//ptt_resize(0x1000000);
-		evaltt_resize(0x2000000);
+		ptt_resize(0x1000000);
+		ett_resize(0x2000000);
 	}
 
 	TransposTable::TransposTable(size_t ttSize, size_t pttSize, size_t ettSize) :
 		tt(nullptr), ptt(nullptr), ett(nullptr)
 	{
 		resize(ttSize);
-		//ptt_resize(pttSize);
-		evaltt_resize(ettSize);
+		ptt_resize(pttSize);
+		ett_resize(ettSize);
 	}
 
 	TransposTable::~TransposTable()
@@ -76,11 +76,37 @@ namespace GGChess
 		_mm_prefetch((char*)&tt[key & tt_size], _MM_HINT_NTA);
 	}
 
-	void TransposTable::evaltt_resize(size_t size) {
+	void TransposTable::ptt_resize(size_t size) {
+		tt_size = resize_tt((void**)(&ptt), sizeof(SimpleTTEntry), size);
+	}
+
+	bool TransposTable::ptt_probe(ZobristKey key, SimpleTTEntry& entry) {
+		if (!ptt_size)
+			return false;
+
+		entry = ptt[key & ptt_size];
+
+		if (entry.key != key)
+			return false;
+
+		return true;
+	}
+
+	void TransposTable::ptt_save(ZobristKey key, Value eval) {
+		if (!ptt_size)
+			return;
+
+		SimpleTTEntry& entry = ptt[key & ptt_size];
+
+		entry.key = key;
+		entry.eval = eval;
+	}
+
+	void TransposTable::ett_resize(size_t size) {
 		ett_size = resize_tt((void**)(&ett), sizeof(SimpleTTEntry), size);
 	}
 
-	bool TransposTable::evaltt_probe(ZobristKey key, SimpleTTEntry& entry)
+	bool TransposTable::ett_probe(ZobristKey key, SimpleTTEntry& entry)
 	{
 		if (!ett_size)
 			return false;
@@ -93,7 +119,7 @@ namespace GGChess
 		return false;
 	}
 
-	void TransposTable::evaltt_save(ZobristKey key, Value eval)
+	void TransposTable::ett_save(ZobristKey key, Value eval)
 	{
 		if (!ett_size)
 			return;

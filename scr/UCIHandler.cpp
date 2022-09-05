@@ -50,7 +50,7 @@ namespace GGChess
 				}
 
 				MoveList moves;
-				GetMoves(internalBoard, internalBoard.GetPosInfo(), s1, moves);
+				GetMoves(internalBoard, internalBoard.Info(), s1, moves);
 
 				for (const Move& move : moves) {
 					if (move.origin == s1 && move.target == s2) {
@@ -81,11 +81,11 @@ namespace GGChess
 			return 1;
 
 		MoveList moves;
-		GetAllMoves(internalBoard, internalBoard.GetPosInfo(), moves);
+		GetAllMoves(internalBoard, internalBoard.Info(), moves);
 		int pos = 0;
 
 		for (Move& move : moves) {
-			ZobristKey zkey = internalBoard.GetPosKey();
+			ZobristKey zkey = internalBoard.Key();
 
 			board.PlayMove(move);
 			pos += SearchHelper(depth - 1, board);
@@ -104,7 +104,7 @@ namespace GGChess
 		}
 
 		MoveList moves;
-		GetAllMoves(internalBoard, internalBoard.GetPosInfo(), moves);
+		GetAllMoves(internalBoard, internalBoard.Info(), moves);
 		int pos = 0;
 
 		for (Move& move : moves) {
@@ -127,7 +127,7 @@ namespace GGChess
 
 	static void PrintCaptures() {
 		MoveList moves;
-		GetAllCaptures(internalBoard, internalBoard.GetPosInfo(), moves);
+		GetAllCaptures(internalBoard, internalBoard.Info(), moves);
 		for (Move& move : moves) {
 			std::cout << std::to_string(move) << " " << BadCapture(internalBoard, move) << std::endl;
 		}
@@ -154,11 +154,11 @@ namespace GGChess
 		else if (first == "perft")
 			Perft(stream);
 		else if (first == "eval")
-			std::cout << "Position evaluation: " << Evaluate(internalBoard, internalBoard.GetPosInfo()) << std::endl;
+			std::cout << "Position evaluation: " << Evaluate(internalBoard, internalBoard.Info()) << std::endl;
 		else if (first == "captures")
 			PrintCaptures();
 		else if (first == "info")
-			std::cout << internalBoard.GetPosInfo().attackBoard << std::endl;
+			std::cout << internalBoard.Info().attackBoard << std::endl;
 	}
 
 	void UCIMain()

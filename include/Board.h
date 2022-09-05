@@ -55,14 +55,15 @@ namespace GGChess
         const Piece& at(Square square) const;
         const Piece& at(size_t idx) const;
 
-        int GetHalfMoves() const;
-        Side GetTurn() const;
-        Square GetKing(Side side) const;
-        const std::array<Piece, 64>& GetBoard() const;
-        Square GetEnPassantTarget() const;
-        PosInfo GetPosInfo() const;
-        ZobristKey GetPosKey() const;
-        CastleFlag GetCastleState() const;
+        int Ply() const;
+        Side Turn() const;
+        Square King(Side side) const;
+        const std::array<Piece, 64>& array() const;
+        Square EPTarget() const;
+        PosInfo Info() const;
+        ZobristKey Key() const;
+        ZobristKey PKey() const;
+        CastleFlag Castling() const;
 
         bool CanCastle(CastleFlag flag) const;
 
@@ -70,7 +71,8 @@ namespace GGChess
     private:
         std::array<Piece, BOARD_SQUARE_COUNT> board;
 
-        ZobristHash myHash;
+        ZobristHash hash;
+        ZobristHash phash;
 
         Square whiteKing;
         Square blackKing;
@@ -82,7 +84,7 @@ namespace GGChess
 
         CastleFlag castling;
 
-        int halfmove_count;
+        int ply;
     public:
         FastArray<MoveData, MAX_DEPTH> moveRecord;
     private:

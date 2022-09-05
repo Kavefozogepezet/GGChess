@@ -52,48 +52,6 @@ namespace GGChess
 		return square ^ 56;
 	}
 
-	Value Evaluate(Board& board, const PosInfo& pos)
-	{
-		SimpleTTEntry ttentry;
-		if (tpostable.evaltt_probe(board.GetPosKey(), ttentry))
-			return ttentry.eval;
-
-		Value mgScore = 0, egScore = 0;
-		Value materialScore = 0;
-		int phase = 0;
-
-		for (int i = 0; i < 64; i++) {
-			Piece p = board[(Square)i];
-			PieceType pt = pieceof(p);
-
-			if (p == Piece::Empty)
-				continue;
-
-			Side ps = sideof(p);
-			Value persp = ps == board.GetTurn() ? 1 : -1;
-
-			//game phase
-			phase += phaseInc[(int)pt];
-
-			// piece value sum
-			Value pieceValue = valueof(pt);
-			materialScore += pieceValue * persp;
-
-			// piece square table
-			int square = ps == Side::White ? Flip(i) : i;
-			mgScore += PSTables::middlegame[(int)pt][square] * persp;
-			egScore += PSTables::endgame[(int)pt][square] * persp;
-		}
-
-		// phase blend
-		phase = std::min(phase, 24);
-		Value phaseScore = (mgScore * phase + egScore * (24 - phase)) / 24;
-
-		Value finalScore = materialScore + phaseScore;
-		tpostable.evaltt_save(board.GetPosKey(), finalScore);
-		return finalScore;
-	}
-
 	static void OrderMoves(Board& board, MoveList& moves)
 	{
 		if (moves.size() < 2)
@@ -214,7 +172,7 @@ namespace GGChess
 
 		for (Move& move : moves) {
 			board.PlayMove(move);
-			eval = -QuiesceSearch(board, board.GetPosInfo(), -beta, -alpha);
+			eval = -QuiesceSearch(board, board.Info(), -beta, -alpha);
 			board.UnplayMove();
 
 			if (BadCapture(board, move) &&
@@ -233,9 +191,9 @@ namespace GGChess
 
 	static Value SearchHelper(Board& board, const PosInfo& info, int depth, Value alpha, Value beta)
 	{
-		tpostable.prefetch(board.GetPosKey());
+		tpostable.prefetch(board.Key());
 
-		prevPosTable.at(board.GetPosKey() % TABLE_SIZE)++; // TODO better repetition test
+		prevPosTable.at(board.Key() % TABLE_SIZE)++; // TODO better repetition test
 
 		if (info.check) // Do not evaluate when in check to prevent false result
 			depth++;
@@ -247,7 +205,7 @@ namespace GGChess
 		sdata.nodes++;
 
 		TTEntry ttentry;
-		if (tpostable.probe(board.GetPosKey(), depth, alpha, beta, ttentry))
+		if (tpostable.probe(board.Key(), depth, alpha, beta, ttentry))
 			return ttentry.eval; // TODO when pv node
 
 		MoveList moves;
@@ -265,7 +223,7 @@ namespace GGChess
 
 		for (const Move& move : moves) {
 			board.PlayMove(move);
-			Value eval = -SearchHelper(board, board.GetPosInfo(), depth - 1, -beta, -alpha);
+			Value eval = -SearchHelper(board, board.Info(), depth - 1, -beta, -alpha);
 			board.UnplayMove();
 
 			if (eval > alpha) {
@@ -281,20 +239,20 @@ namespace GGChess
 			}
 		}
 
-		tpostable.save(board.GetPosKey(), depth, alpha, flag, bestmove);
+		tpostable.save(board.Key(), depth, alpha, flag, bestmove);
 		return alpha;
 	}
 
 	RootMove SearchRoot(Board& board, size_t depth, Value alpha, Value beta)
 	{
-		PosInfo info = board.GetPosInfo();
+		PosInfo info = board.Info();
 		RootMove best;
 
 		if (info.check)
 			++depth; // extend search to avoid evaluating position when in check
 
 		MoveList moves;
-		GetAllMoves(board, board.GetPosInfo(), moves);
+		GetAllMoves(board, board.Info(), moves);
 
 		if (moves.size() == 1)
 			return RootMove(moves[0]);
@@ -305,20 +263,20 @@ namespace GGChess
 
 		for (const Move& move : moves) {
 			board.PlayMove(move);
-			Value eval = -SearchHelper(board, board.GetPosInfo(), depth - 1, -beta, -alpha);
+			Value eval = -SearchHelper(board, board.Info(), depth - 1, -beta, -alpha);
 			board.UnplayMove();
 
 			if (eval > alpha) {
 				best = RootMove(move, eval);
 				if (eval > beta) {
-					tpostable.save(board.GetPosKey(), depth, eval, TTFlag::Beta, move);
+					tpostable.save(board.Key(), depth, eval, TTFlag::Beta, move);
 					return best;
 				}
 			}
 			alpha = eval;
-			tpostable.save(board.GetPosKey(), depth, eval, TTFlag::Alpha, move);
+			tpostable.save(board.Key(), depth, eval, TTFlag::Alpha, move);
 		}
-		tpostable.save(board.GetPosKey(), depth, alpha, TTFlag::Exact, best.myMove);
+		tpostable.save(board.Key(), depth, alpha, TTFlag::Exact, best.myMove);
 		return best;
 	}
 

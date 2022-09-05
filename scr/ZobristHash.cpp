@@ -73,10 +73,10 @@ namespace GGChess
 			if (board[i] != Piece::Empty)
 				piece(board[i], (Square)i);
 
-		castle(board.GetCastleState());
-		enPassant(board.GetEnPassantTarget());
+		castle(board.Castling());
+		enPassant(board.EPTarget());
 
-		if (board.GetTurn() == Side::Black)
+		if (board.Turn() == Side::Black)
 			flipSide();
 	}
 

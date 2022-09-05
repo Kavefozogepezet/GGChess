@@ -38,6 +38,10 @@ namespace GGChess
 			egRook[BOARD_SQUARE_COUNT], egQueen[BOARD_SQUARE_COUNT], egKing[BOARD_SQUARE_COUNT];
 
 		extern const Value* middlegame[PIECE_COUNT], *endgame[PIECE_COUNT];
+
+		extern const Value
+			passedPawn[8], // by rank
+			weakPawn[8]; // by file
 	}
 
 	struct RootMove

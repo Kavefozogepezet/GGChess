@@ -23,7 +23,7 @@ int SearchHelper(int depth, Board& board) {
         return 1;
 
     MoveList moves;
-    GetAllMoves(board, board.GetPosInfo(), moves);
+    GetAllMoves(board, board.Info(), moves);
     int pos = 0;
     /*
     if (board.moveList.back().move.target == Square::b5) {
@@ -64,7 +64,7 @@ void ShearchBruteForce(int depth, Board& board, ThreadPool& pool)
     }
 
     MoveList moves;
-    GetAllMoves(board, board.GetPosInfo(), moves);
+    GetAllMoves(board, board.Info(), moves);
     int pos = 0;
 
     std::vector<std::shared_future<int>> futures;
@@ -106,7 +106,7 @@ void Play()
 
     while (true) {
         MoveList moves;
-        GetAllMoves(board, board.GetPosInfo(), moves);
+        GetAllMoves(board, board.Info(), moves);
 
         std::cout << board << "\n" << std::endl << "pls move: ";
         std::string movestr;

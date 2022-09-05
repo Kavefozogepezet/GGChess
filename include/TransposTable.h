@@ -34,15 +34,15 @@ namespace GGChess
 		void save(ZobristKey key, uint8_t depth, Value eval, TTFlag flag, Move best);
 		void prefetch(ZobristKey key);
 
-		/*
-		void pawntt_resize(size_t size);
-		bool pawntt_probe(ZobristKey key);
-		void pawntt_save(ZobristKey key, Value eval);
-		*/
+		
+		void ptt_resize(size_t size);
+		bool ptt_probe(ZobristKey key, SimpleTTEntry& entry);
+		void ptt_save(ZobristKey key, Value eval);
+		
 
-		void evaltt_resize(size_t size);
-		bool evaltt_probe(ZobristKey key, SimpleTTEntry& entry);
-		void evaltt_save(ZobristKey key, Value eval);
+		void ett_resize(size_t size);
+		bool ett_probe(ZobristKey key, SimpleTTEntry& entry);
+		void ett_save(ZobristKey key, Value eval);
 	private:
 		TTEntry* tt;
 		size_t tt_size;

@@ -10,14 +10,14 @@
 namespace GGChess
 {
 	Board::Board() :
-		board{ Piece::Empty }, myHash(),
+		board{ Piece::Empty }, hash(),
 		whiteKing(Square::InvalidSquare),
 		blackKing(Square::InvalidSquare),
 		turn(Side::White),
 		ep_start(Square::InvalidSquare),
 		ep_target(Square::InvalidSquare),
 		castling((CastleFlag)15),
-		halfmove_count(0), moveRecord()
+		ply(0), moveRecord()
 	{
 		PieceType pieces[3] = { PieceType::Rook, PieceType::Knight, PieceType::Bishop};
 		
@@ -43,7 +43,7 @@ namespace GGChess
 
 	void Board::PlayUnrecorded(const Move& move)
 	{
-		myHash.castle(castling); // in case it changes we remove it from the hash code
+		hash.castle(castling); // in case it changes we remove it from the hash code
 
 		Piece mPiece = board[move.origin]; // the moveing piece
 		PieceType mPieceT = pieceof(mPiece);
@@ -79,12 +79,12 @@ namespace GGChess
 		}
 
 		if (ep_target != Square::InvalidSquare) { // clearing enpassant target
-			myHash.enPassant(ep_target);
+			hash.enPassant(ep_target);
 			ep_target = Square::InvalidSquare;
 		}
 		if (move.flags & Move::DoublePush) { // writing en passant target
 			ep_target = move.origin + (turn == Side::White ? SDir::N : SDir::S);
-			myHash.enPassant(ep_target);
+			hash.enPassant(ep_target);
 		}
 
 		// castling state
@@ -120,10 +120,10 @@ namespace GGChess
 				castling &= ~CastleFlag::BlackKingside;
 		}
 		
-		myHash.castle(castling); // add the new castling state
+		hash.castle(castling); // add the new castling state
 
 		turn = otherside(turn);
-		myHash.flipSide();
+		hash.flipSide();
 	}
 
 	void Board::PlayMove(const Move& move) {
@@ -137,7 +137,7 @@ namespace GGChess
 		MoveData moveData = moveRecord.pop_back();
 		const Move& move = moveData.move;
 		turn = otherside(turn);
-		myHash.flipSide();
+		hash.flipSide();
 
 		MovePiece(move.target, move.origin);
 
@@ -165,23 +165,23 @@ namespace GGChess
 			MovePiece(rookSquare, rookTarget);
 		}
 
-		myHash.castle(castling);
+		hash.castle(castling);
 		castling = moveData.castle;
-		myHash.castle(castling);
+		hash.castle(castling);
 
 		//en passant
 		if (ep_target != Square::InvalidSquare) { // clearing enpassant target
-			myHash.enPassant(ep_target);
+			hash.enPassant(ep_target);
 			ep_target = Square::InvalidSquare;
 		}
 
 		if (moveRecord.size() == 0) {
 			ep_target = ep_start;
-			myHash.enPassant(ep_target);
+			hash.enPassant(ep_target);
 		}
 		else if (moveRecord.back().move.flags & Move::DoublePush) {
 			ep_target = moveRecord.back().move.origin + (turn == Side::White ? SDir::S : SDir::N);
-			myHash.enPassant(ep_target);
+			hash.enPassant(ep_target);
 		}
 	}
 
@@ -203,19 +203,19 @@ namespace GGChess
 		return board.at(idx);
 	}
 
-	Square Board::GetKing(Side side) const {
+	Square Board::King(Side side) const {
 		return side == Side::White ? whiteKing : blackKing;
 	}
 
-	Side Board::GetTurn() const {
+	Side Board::Turn() const {
 		return turn;
 	}
 
-	const std::array<Piece, 64>& Board::GetBoard() const {
+	const std::array<Piece, 64>& Board::array() const {
 		return board;
 	}
 
-	Square Board::GetEnPassantTarget() const {
+	Square Board::EPTarget() const {
 		return ep_target;
 	}
 
@@ -223,12 +223,12 @@ namespace GGChess
 		return castling & flag;
 	}
 
-	CastleFlag Board::GetCastleState() const {
+	CastleFlag Board::Castling() const {
 		return castling;
 	}
 
-	int Board::GetHalfMoves() const {
-		return halfmove_count;
+	int Board::Ply() const {
+		return ply;
 	}
 
 	void Board::SetThisAsStart() {
@@ -239,7 +239,10 @@ namespace GGChess
 	void Board::PlacePiece(Square square, Piece piece)
 	{
 		board[square] = piece;
-		myHash.piece(piece, square);
+		hash.piece(piece, square);
+
+		if (pieceof(piece) == PieceType::Pawn)
+			phash.piece(piece, square);
 
 		if (piece == Piece::WKing)
 			whiteKing = square;
@@ -250,7 +253,10 @@ namespace GGChess
 	void Board::RemovePiece(Square square)
 	{
 		Piece piece = board[square];
-		myHash.piece(piece, square);
+		hash.piece(piece, square);
+
+		if (pieceof(piece) == PieceType::Pawn)
+			phash.piece(piece, square);
 
 		if (piece == Piece::WKing)
 			whiteKing = Square::InvalidSquare;
@@ -279,12 +285,12 @@ namespace GGChess
 		PlacePiece(target, p);
 	}
 
-	PosInfo Board::GetPosInfo() const
+	PosInfo Board::Info() const
 	{
 		PosInfo info;
 		Side attacker = otherside(turn);
 
-		Square square = GetKing(turn);
+		Square square = King(turn);
 		int checkCount = 0;
 
 		KnightPattern(square, [&](Square target) {
@@ -380,7 +386,7 @@ namespace GGChess
 			case PieceType::Queen:
 				SlidingPiecePattern(Square(i), pieceof(p), [&](Square target, int rayIdx) {
 					info.attackBoard.Set(target, true);
-					return (board[target] == Piece::Empty) || target == GetKing(turn);
+					return (board[target] == Piece::Empty) || target == King(turn);
 					});
 				break;
 			}
@@ -399,7 +405,11 @@ namespace GGChess
 		return info;
 	}
 
-	ZobristKey Board::GetPosKey() const {
-		return myHash.key();
+	ZobristKey Board::Key() const {
+		return hash.key();
+	}
+
+	ZobristKey Board::PKey() const {
+		return phash.key();
 	}
 }

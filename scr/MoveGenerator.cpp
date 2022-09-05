@@ -16,14 +16,14 @@ namespace GGChess
 	bool AddIfLegal(Board& board, const PosInfo& info, const Move& move, MoveList& moves)
 	{
 		Square
-			epPawn = board.GetEnPassantTarget() + (board.GetTurn() == Side::White ? SDir::S : SDir::W),
-			king = board.GetKing(board.GetTurn());
+			epPawn = board.EPTarget() + (board.Turn() == Side::White ? SDir::S : SDir::W),
+			king = board.King(board.Turn());
 		bool kingIsMoving = move.origin == king;
 
 		if (info.doubleCheck && !kingIsMoving)
 			return false;
 
-		if (move.origin == board.GetKing(board.GetTurn())) {
+		if (move.origin == board.King(board.Turn())) {
 			if (info.attackBoard.Get(move.target))
 				return false;
 			else {
@@ -46,7 +46,7 @@ namespace GGChess
 					Piece tp = board[target];
 					if (tp == Piece::Empty || target == move.origin)
 						target = target + dir;
-					else if (sideof(tp) == board.GetTurn())
+					else if (sideof(tp) == board.Turn())
 						break;
 					else {
 						PieceType tpt = pieceof(tp);
@@ -213,7 +213,7 @@ namespace GGChess
 	{
 		for (int i = 0; i < BOARD_SQUARE_COUNT; i++) {
 			Piece p = board[(Square)i];
-			if (p != Piece::Empty && sideof(p) == board.GetTurn())
+			if (p != Piece::Empty && sideof(p) == board.Turn())
 				GetMoves(board, info, (Square)i, moves);
 		}
 	}
@@ -225,7 +225,7 @@ namespace GGChess
 			PieceType pt = pieceof(p);
 			Side ps = sideof(p);
 
-			if (p != Piece::Empty && sideof(p) == board.GetTurn())
+			if (p != Piece::Empty && sideof(p) == board.Turn())
 			{
 				switch (pt) {
 				case PieceType::Pawn:
@@ -286,7 +286,7 @@ namespace GGChess
 				if (attack) {
 					if (targetPiece != Piece::Empty && sideof(targetPiece) != side)
 						AddWithPromotion(board, info, square, target, targetPiece, moves);
-					else if (target == board.GetEnPassantTarget())
+					else if (target == board.EPTarget())
 						AddIfLegal(board, info, Move(square, target, Move::EnPassant), moves);
 				}
 				else {

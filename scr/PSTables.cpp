@@ -143,4 +143,12 @@ namespace GGChess::PSTables
     const Value* endgame[PIECE_COUNT] = {
         nullptr, egKing, egQueen, egBishop, egKnight, egRook, egPawn
     };
+
+    const Value passedPawn[8] = {
+        0, 20, 20, 32, 56, 92, 140, 0
+    };
+
+    const Value weakPawn[8] = {
+        -10, -12, -14, -16, -16, -14, -12, -10
+    };
 }

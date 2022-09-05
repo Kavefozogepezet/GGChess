@@ -85,13 +85,13 @@ namespace GGChess
 		for (int rank = 7; rank >= 0; rank--) {
 			std::cout << std::endl << sep1 << std::endl << sep2;
 			for (int file = 0; file < 8; file++) {
-				std::cout << piece_to_char(board.GetBoard()[rank * 8 + file]) << sep2;
+				std::cout << piece_to_char(board.array()[rank * 8 + file]) << sep2;
 			}
 			std::cout << rank + 1;
 		}
 		std::cout << std::endl << sep1 << std::endl << "   a   b   c   d   e   f   g   h" << std::endl;
 
-		std::cout << "e.p. target : " << std::to_string(board.GetEnPassantTarget()) << "; castle : " << (unsigned int)board.GetCastleState() << std::endl;
+		std::cout << "e.p. target : " << std::to_string(board.EPTarget()) << "; castle : " << (unsigned int)board.Castling() << std::endl;
 
 		return stream;
 	}

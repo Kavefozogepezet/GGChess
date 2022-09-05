@@ -86,6 +86,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="scr\Evaluation.cpp" />
     <ClCompile Include="scr\Search.cpp" />
     <ClCompile Include="scr\Fen.cpp" />
     <ClCompile Include="GGChess.cpp" />
