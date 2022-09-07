@@ -20,13 +20,14 @@ namespace GGChess
         BitBoard
             checkBoard,
             attackBoard,
+            pAttackBoard[2], // idx 0 white, idx 1 black
             unifiedPinBoard;
 
         std::array<BitBoard, 8> pinBoards;
 
         PosInfo() :
             check(false), doubleCheck(false),
-            checkBoard(), attackBoard(),
+            checkBoard(), attackBoard(), pAttackBoard{},
             unifiedPinBoard(), pinBoards()
         {}
     };

@@ -1,3 +1,6 @@
+#include "BasicTypes.h"
+
+#include <algorithm>
 
 namespace GGChess
 {
@@ -37,6 +40,10 @@ namespace GGChess
 	}
 
 	// SQUARE
+
+	bool isnear(Square sq1, Square sq2) {
+		return std::abs(rankof(sq1) - rankof(sq2)) < 2 && std::abs(fileof(sq1) - fileof(sq2)) < 2;
+	}
 
 	inline bool validsquare(Square square) {
 		return int8_t(square) >= 0 && int8_t(square) < 64;

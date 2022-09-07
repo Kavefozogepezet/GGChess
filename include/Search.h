@@ -42,6 +42,8 @@ namespace GGChess
 		extern const Value
 			passedPawn[8], // by rank
 			weakPawn[8]; // by file
+
+		extern const Value kingSafetyTable[100];
 	}
 
 	struct RootMove

@@ -70,7 +70,7 @@ namespace GGChess
 
 	static void ExecuteGo(std::stringstream& stream)
 	{
-		Move best = Search(internalBoard, 7);
+		Move best = Search(internalBoard, 6);
 		UCI_BESTMOVE(best);
 	}
 

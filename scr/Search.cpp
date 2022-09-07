@@ -152,10 +152,13 @@ namespace GGChess
 		return false;
 	}
 
+	size_t quiesce_count = 0;
+
 	static Value QuiesceSearch(Board& board, const PosInfo& info, Value alpha, Value beta)
 	{
 		sdata.nodes++;
 		sdata.qnodes++;
+		quiesce_count++;
 		
 		Value eval = Evaluate(board, info);
 		Value standPat = eval;
@@ -171,14 +174,18 @@ namespace GGChess
 		OrderMoves(board, moves);
 
 		for (Move& move : moves) {
-			board.PlayMove(move);
-			eval = -QuiesceSearch(board, board.Info(), -beta, -alpha);
-			board.UnplayMove();
+			if (standPat + valueof(pieceof(move.captured)) + 200 < alpha &&
+				!(move.flags & Move::Flags::Promotion)) // TODO endgame material check
+				continue;
 
 			if (BadCapture(board, move) &&
 				pieceof(move.captured) != PieceType::Pawn && // TODO can simplify
 				!(move.flags & Move::Flags::Promotion))
 				continue;
+
+			board.PlayMove(move);
+			eval = -QuiesceSearch(board, board.Info(), -beta, -alpha);
+			board.UnplayMove();
 
 			if (eval > alpha) {
 				if (eval >= beta)
@@ -198,9 +205,10 @@ namespace GGChess
 		if (info.check) // Do not evaluate when in check to prevent false result
 			depth++;
 
-		if (depth <= 0)
+		if (depth <= 0) {
 			return QuiesceSearch(board, info, alpha, beta); // search until no capture
-			//return EvaluatePos(board, info);
+			quiesce_count = 0;
+		}
 
 		sdata.nodes++;
 

@@ -357,17 +357,20 @@ namespace GGChess
 			info.unifiedPinBoard.Set(pin.bits, true);
 
 		// attack board
-		BitBoard pb;
+		BitBoard pbf, pbo;
 
 		for (int8_t i = 0; i < BOARD_SQUARE_COUNT; i++) {
 			Piece p = board[i];
 
-			if (p == Piece::Empty || sideof(p) != attacker)
+			if (p == Piece::Empty || sideof(p) != attacker) {
+				if (pieceof(p) == PieceType::Pawn)
+					pbf.Set(Square(i), true);
 				continue;
+			}
 
 			switch (pieceof(p)) {
 			case PieceType::Pawn:
-				pb.Set(Square(i), true);
+				pbo.Set(Square(i), true);
 				break;
 			case PieceType::Knight:
 				KnightPattern(Square(i), [&](Square target) {
@@ -396,11 +399,17 @@ namespace GGChess
 			fileA = 0x0101010101010101ULL,
 			fileH = fileA << 7;
 
-		BitBoard pawnattack = attacker == Side::White ?
-			(pb.bits & ~fileA) << 7 | (pb.bits & ~fileH) << 9 :
-			(pb.bits & ~fileA) >> 9 | (pb.bits & ~fileH) >> 7;
+		size_t idx = turn == Side::White ? 1 : 0;
+		info.pAttackBoard[idx] = attacker == Side::White ?
+			(pbo.bits & ~fileA) << 7 | (pbo.bits & ~fileH) << 9 :
+			(pbo.bits & ~fileA) >> 9 | (pbo.bits & ~fileH) >> 7;
 
-		info.attackBoard.Set(pawnattack.bits, true);
+		idx = turn == Side::White ? 0 : 1;
+		info.pAttackBoard[idx] = attacker == Side::Black ?
+			(pbf.bits & ~fileA) << 7 | (pbf.bits & ~fileH) << 9 :
+			(pbf.bits & ~fileA) >> 9 | (pbf.bits & ~fileH) >> 7;
+
+		info.attackBoard.Set(info.pAttackBoard[0].bits, true);
 
 		return info;
 	}

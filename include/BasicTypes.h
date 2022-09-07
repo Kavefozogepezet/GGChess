@@ -74,6 +74,8 @@ namespace GGChess
     inline int8_t rankof(Square square);
     inline int8_t fileof(Square square);
 
+    inline bool isnear(Square sq1, Square sq2);
+
     inline Square operator + (Square square, int8_t delta);
     inline Square operator - (Square square, int8_t delta);
 
