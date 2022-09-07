@@ -10,21 +10,33 @@ namespace GGChess
 	class Board;
 	struct PosInfo;
 
+	extern const Value MAX_VALUE, MIN_VALUE;
+
+	struct RootMove
+	{
+		Move myMove;
+		Value score;
+
+		RootMove(const Move& move = Move(), Value score = MIN_VALUE);
+
+		bool operator < (const RootMove& other) const;
+	};
+
 	struct SearchData {
 		using clock = typename std::chrono::steady_clock;
 
 		uint64_t nodes;
 		uint64_t qnodes;
 		uint64_t aspf;
-		clock::time_point start;
+		Timer timer;
+
+		size_t depth;
+		RootMove best;
 
 		void reset();
-		int64_t elapsed();
 	};
 
 	extern SearchData sdata;
-
-	extern const Value MAX_VALUE, MIN_VALUE;
 
 	extern const int phaseInc[7];
 
@@ -45,16 +57,6 @@ namespace GGChess
 
 		extern const Value kingSafetyTable[100];
 	}
-
-	struct RootMove
-	{
-		Move myMove;
-		Value score;
-
-		RootMove(const Move& move = Move(), Value score = MIN_VALUE);
-
-		bool operator < (const RootMove& other) const;
-	};
 
 	Value Evaluate(Board& board, const PosInfo& info);
 

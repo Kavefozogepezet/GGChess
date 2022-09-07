@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <chrono>
 
 namespace GGChess
 {
@@ -168,6 +169,24 @@ namespace GGChess
 
         inline BitBoard& operator |= (const BitBoard& other);
         inline BitBoard operator | (const BitBoard& other) const;
+    };
+
+    class Timer
+    {
+        using clock = typename std::chrono::steady_clock;
+    public:
+        Timer() : start(clock::now()) {};
+
+        inline void reset() {
+            start = clock::now();
+        }
+
+        inline uint64_t elapsed() {
+            clock::duration e = clock::now() - start;
+            return std::chrono::duration_cast<std::chrono::milliseconds>(e).count();
+        }
+    private:
+        clock::time_point start;
     };
 }
 

@@ -20,12 +20,7 @@ namespace GGChess
 		nodes = 0;
 		qnodes = 0;
 		aspf = 0;
-		start = clock::now();
-	}
-
-	int64_t SearchData::elapsed() {
-		clock::duration e = clock::now() - start;
-		return std::chrono::duration_cast<std::chrono::milliseconds>(e).count();
+		timer.reset();
 	}
 
 	SearchData sdata;
@@ -159,6 +154,8 @@ namespace GGChess
 		sdata.nodes++;
 		sdata.qnodes++;
 		quiesce_count++;
+
+		printSearchData(sdata);
 		
 		Value eval = Evaluate(board, info);
 		Value standPat = eval;
@@ -202,8 +199,10 @@ namespace GGChess
 
 		prevPosTable.at(board.Key() % TABLE_SIZE)++; // TODO better repetition test
 
-		if (info.check) // Do not evaluate when in check to prevent false result
+		if (info.check && depth <= 0) // Do not evaluate when in check to prevent false result
 			depth++;
+
+		printSearchData(sdata);
 
 		if (depth <= 0) {
 			return QuiesceSearch(board, info, alpha, beta); // search until no capture
@@ -292,22 +291,23 @@ namespace GGChess
 	{
 		sdata.reset();
 
-		RootMove move = SearchRoot(board, 1, MIN_VALUE, MAX_VALUE);
-		printSearchData(1, sdata, move);
+		sdata.best = SearchRoot(board, 1, MIN_VALUE, MAX_VALUE);
+		sdata.depth++;
+		printSearchData(sdata);
 
-		for (size_t curr_depth = 2; curr_depth <= depth; curr_depth++)
+		for (sdata.depth = 2; sdata.depth <= depth; sdata.depth++)
 		{
 			Value delta = 50;
 
 			//while (true) {
 				Value
-					alpha = move.score - delta,
-					beta = move.score + delta;
+					alpha = sdata.best.score - delta,
+					beta = sdata.best.score + delta;
 
-				move = SearchRoot(board, curr_depth, alpha, beta); // search with aspiration window
-				if (move.score <= alpha || move.score >= beta) {
+				sdata.best = SearchRoot(board, sdata.depth, alpha, beta); // search with aspiration window
+				if (sdata.best.score <= alpha || sdata.best.score >= beta) {
 					//delta += delta / 4;
-					move = SearchRoot(board, curr_depth, MIN_VALUE, MAX_VALUE);
+					sdata.best = SearchRoot(board, sdata.depth, MIN_VALUE, MAX_VALUE);
 					sdata.aspf++;
 				}
 				/*else {
@@ -315,9 +315,8 @@ namespace GGChess
 				}*/
 			//}
 
-			printSearchData(curr_depth, sdata, move);
+			printSearchData(sdata);
 		}
-		return move.myMove;
-
+		return sdata.best.myMove;
 	}
 }

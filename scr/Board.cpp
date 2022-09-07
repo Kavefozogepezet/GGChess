@@ -399,17 +399,18 @@ namespace GGChess
 			fileA = 0x0101010101010101ULL,
 			fileH = fileA << 7;
 
-		size_t idx = turn == Side::White ? 1 : 0;
-		info.pAttackBoard[idx] = attacker == Side::White ?
-			(pbo.bits & ~fileA) << 7 | (pbo.bits & ~fileH) << 9 :
-			(pbo.bits & ~fileA) >> 9 | (pbo.bits & ~fileH) >> 7;
-
-		idx = turn == Side::White ? 0 : 1;
+		size_t idx = turn == Side::White ? 0 : 1;
 		info.pAttackBoard[idx] = attacker == Side::Black ?
 			(pbf.bits & ~fileA) << 7 | (pbf.bits & ~fileH) << 9 :
 			(pbf.bits & ~fileA) >> 9 | (pbf.bits & ~fileH) >> 7;
 
-		info.attackBoard.Set(info.pAttackBoard[0].bits, true);
+		idx = turn == Side::White ? 1 : 0;
+		info.pAttackBoard[idx] = attacker == Side::White ?
+			(pbo.bits & ~fileA) << 7 | (pbo.bits & ~fileH) << 9 :
+			(pbo.bits & ~fileA) >> 9 | (pbo.bits & ~fileH) >> 7;
+
+
+		info.attackBoard.Set(info.pAttackBoard[idx].bits, true);
 
 		return info;
 	}

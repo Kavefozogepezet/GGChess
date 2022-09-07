@@ -170,14 +170,23 @@ namespace GGChess
 			ExecuteCommand(input);
 		}
 	}
-	void printSearchData(size_t depth, SearchData& sdata, RootMove& best)
+	void printSearchData(SearchData& sdata)
 	{
-		UCI_INFO << "depth " << depth <<
-			" score cp " << best.score <<
+		static size_t prev_depth = 0;
+		static Timer timer;
+
+		if (prev_depth == sdata.depth && !(timer.elapsed() > 2000))
+			return;
+
+		timer.reset();
+		prev_depth = sdata.depth;
+
+		UCI_INFO << "depth " << sdata.depth <<
+			" score cp " << sdata.best.score <<
 			" nodes " << sdata.nodes <<
 			" qnodes " << sdata.qnodes <<
-			" time " << sdata.elapsed() <<
+			" time " << sdata.timer.elapsed() <<
 			" asp_fail " << sdata.aspf <<
-			" pv " << best.myMove << std::endl;
+			" pv " << sdata.best.myMove << std::endl;
 	}
 }
