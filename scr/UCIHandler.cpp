@@ -170,12 +170,12 @@ namespace GGChess
 			ExecuteCommand(input);
 		}
 	}
-	void printSearchData(SearchData& sdata)
+	void printSearchData(SearchData& sdata, bool forced)
 	{
 		static size_t prev_depth = 0;
 		static Timer timer;
 
-		if (prev_depth == sdata.depth && !(timer.elapsed() > 2000))
+		if (!forced && prev_depth == sdata.depth && !(timer.elapsed() > 2000))
 			return;
 
 		timer.reset();

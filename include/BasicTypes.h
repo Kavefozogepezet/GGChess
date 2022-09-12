@@ -138,7 +138,7 @@ namespace GGChess
         Square target;
         Piece captured; // the piece that was originally on the target square, if e.p. then Empty
         Flags flags;
-
+        
         Move() :
             origin(Square::InvalidSquare), target(Square::InvalidSquare), captured(Piece::Empty), flags(Flags::Basic)
         {}
@@ -152,10 +152,12 @@ namespace GGChess
         {}
     };
 
+    static const uint64_t
+        fileA = 0x0101010101010101ULL,
+        fileH = fileA << 7;
+
     struct BitBoard
     {
-        //static const BitBoard AFile, HFile;
-
         uint64_t bits;
 
         BitBoard() : bits(0) {}
@@ -166,6 +168,8 @@ namespace GGChess
 
         inline long long Get(uint64_t mask) const;
         inline bool Get(Square square) const;
+
+        inline BitBoard pawnAttack(Side side) const;
 
         inline BitBoard& operator |= (const BitBoard& other);
         inline BitBoard operator | (const BitBoard& other) const;

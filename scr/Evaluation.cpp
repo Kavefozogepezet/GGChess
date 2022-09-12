@@ -47,6 +47,8 @@ namespace GGChess
 	void PawnEval(Board& board, const PosInfo& info, EvalData& score, Square square, Side side)
 	{
 		SDir dir = side == Side::White ? SDir::N : SDir::S;
+		Value persp = side == board.Turn() ? 1 : -1;
+
 		Piece
 			opposition = PieceType::Pawn | otherside(side),
 			friendly = PieceType::Pawn | side;
@@ -98,10 +100,10 @@ namespace GGChess
 		Square pstSquare = side == Side::White ? square : flipside(square);
 
 		if (passedFlag)
-			score.pawn += PSTables::passedPawn[rankof(square)];
+			score.pawn += PSTables::passedPawn[rankof(pstSquare)] * persp;
 
 		if (weakFlag) {
-			score.pawn += PSTables::weakPawn[fileof(square)];
+			score.pawn += PSTables::weakPawn[fileof(pstSquare)] * persp;
 			if (!opposedFlag)
 				score.pawn -= 4;
 		}
@@ -109,6 +111,7 @@ namespace GGChess
 
 	void KnightEval(Board& board, const PosInfo& info, EvalData& score, Square square, Piece piece)
 	{
+		Value persp = sideof(piece) == board.Turn() ? 1 : -1;
 		uint8_t
 			mobility = 0,
 			nearKing = 0;
@@ -126,9 +129,9 @@ namespace GGChess
 			return true;
 			});
 
-		score.middlegame += 4 * (mobility - 4);
-		score.endgame += 4 * (mobility - 4);
-		score.nearKing += nearKing * 2;
+		score.middlegame += 4 * (mobility - 4) * persp;
+		score.endgame += 4 * (mobility - 4) * persp;
+		//score.nearKing += nearKing * 2;
 	}
 
 	void SlidingPieceEval(Board& board, const PosInfo& info, EvalData& score, Square square, Piece piece)
@@ -139,6 +142,7 @@ namespace GGChess
 
 		uint8_t nkValue[PIECE_COUNT] = { 0, 0, 4, 2, 2, 3, 0 };
 
+		Value persp = sideof(piece) == board.Turn() ? 1 : -1;
 		uint8_t
 			mobility = 0,
 			nearKing = 0;
@@ -166,9 +170,9 @@ namespace GGChess
 			return true;
 			});
 
-		score.middlegame += mgMob[int(pt)] * mobility;
-		score.endgame += egMob[int(pt)] * mobility;
-		score.nearKing += nkValue[int(pt)] * nearKing;
+		score.middlegame += mgMob[int(pt)] * mobility * persp;
+		score.endgame += egMob[int(pt)] * mobility * persp;
+		//score.nearKing += nkValue[int(pt)] * nearKing;
 	}
 
 	void PieceEval(Board& board, const PosInfo& info, EvalData& score, Square square, Piece piece)
@@ -207,8 +211,8 @@ namespace GGChess
 
 			if (!ptt_hit && pt == PieceType::Pawn)
 				PawnEval(board, info, score, Square(i), sideof(p));
-			else
-				PieceEval(board, info, score, Square(i), p);
+			//else
+				//PieceEval(board, info, score, Square(i), p);
 
 			switch (pt) {
 			case PieceType::Bishop: score.bishops++; break;
@@ -246,7 +250,9 @@ namespace GGChess
 		if (score.rooks > 1)
 			finalScore -= 16;
 
+		// king safety
 		finalScore += KingShields(board);
+		//finalScore -= PSTables::kingSafetyTable[score.nearKing];
 
 		tpostable.ett_save(board.Key(), finalScore);
 		return finalScore;

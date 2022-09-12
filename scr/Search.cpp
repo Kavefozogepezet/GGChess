@@ -29,10 +29,15 @@ namespace GGChess
 	static std::array<uint8_t, TABLE_SIZE> prevPosTable; // TODO Rewrite this mess
 
 	const Value
-		MAX_VALUE = std::numeric_limits<Value>::max(),
-		MIN_VALUE = std::numeric_limits<Value>::min() + 1;
+		MAX_VALUE = std::numeric_limits<Value>::max() / 2,
+		MIN_VALUE = (std::numeric_limits<Value>::min() + 1) / 2;
 
 	const int phaseInc[7] = { 0, 0, 4, 1, 1, 2, 0 };
+
+	RootMove::RootMove() :
+		myMove(Square(100), Square(100)),
+		score(MIN_VALUE)
+	{}
 
 	RootMove::RootMove(const Move& move, Value score) :
 		myMove(move),
@@ -253,7 +258,7 @@ namespace GGChess
 	RootMove SearchRoot(Board& board, size_t depth, Value alpha, Value beta)
 	{
 		PosInfo info = board.Info();
-		RootMove best;
+		RootMove best = RootMove(Move(Square(110), Square(110)));
 
 		if (info.check)
 			++depth; // extend search to avoid evaluating position when in check
@@ -297,25 +302,21 @@ namespace GGChess
 
 		for (sdata.depth = 2; sdata.depth <= depth; sdata.depth++)
 		{
+			sdata.best = SearchRoot(board, sdata.depth, MIN_VALUE, MAX_VALUE);
+			/*
 			Value delta = 50;
+			Value
+				alpha = sdata.best.score - delta,
+				beta = sdata.best.score + delta;
 
-			//while (true) {
-				Value
-					alpha = sdata.best.score - delta,
-					beta = sdata.best.score + delta;
-
-				sdata.best = SearchRoot(board, sdata.depth, alpha, beta); // search with aspiration window
-				if (sdata.best.score <= alpha || sdata.best.score >= beta) {
-					//delta += delta / 4;
-					sdata.best = SearchRoot(board, sdata.depth, MIN_VALUE, MAX_VALUE);
-					sdata.aspf++;
-				}
-				/*else {
-					break;
-				}*/
-			//}
-
-			printSearchData(sdata);
+			RootMove temp = SearchRoot(board, sdata.depth, alpha, beta); // search with aspiration window
+			if (temp.score <= alpha || temp.score >= beta) {
+				temp = SearchRoot(board, sdata.depth, MIN_VALUE, MAX_VALUE);
+				sdata.aspf++;
+			}
+			sdata.best = temp;
+				*/
+			printSearchData(sdata, true);
 		}
 		return sdata.best.myMove;
 	}

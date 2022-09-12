@@ -129,6 +129,12 @@ namespace GGChess
 		return Get(uint64_t(1LL << uint64_t(square)));
 	}
 
+	inline BitBoard BitBoard::pawnAttack(Side side) const {
+		return side == Side::White ?
+			(bits & ~fileA) << 7 | (bits & ~fileH) << 9 :
+			(bits & ~fileA) >> 9 | (bits & ~fileH) >> 7;
+	}
+
 	inline BitBoard& BitBoard::operator |= (const BitBoard& other) {
 		bits |= other.bits;
 		return *this;

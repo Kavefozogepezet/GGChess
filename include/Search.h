@@ -17,7 +17,8 @@ namespace GGChess
 		Move myMove;
 		Value score;
 
-		RootMove(const Move& move = Move(), Value score = MIN_VALUE);
+		RootMove();
+		RootMove(const Move& move, Value score = MIN_VALUE);
 
 		bool operator < (const RootMove& other) const;
 	};

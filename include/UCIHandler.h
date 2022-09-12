@@ -16,5 +16,5 @@ namespace GGChess
 
 	void UCIMain();
 
-	void printSearchData(SearchData& sdata);
+	void printSearchData(SearchData& sdata, bool forced = false);
 }

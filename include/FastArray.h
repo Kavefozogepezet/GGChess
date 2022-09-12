@@ -1,24 +1,24 @@
 #pragma once
 
+#include <stdexcept>
+
 template<typename Type, size_t max_size>
 class FastArray
 {
 public:
 	FastArray() :
-		items(), last(items), count(0)
+		items((Type*)malloc(sizeof(Type) * max_size)), last(items), count(0)
 	{}
-
-	FastArray(const FastArray& other) { // TODO capacity independent
-		for (size_t i = 0; i < max_size; i++) {
-			items[i] = other.items[i];
-		}
-	}
 
 	FastArray& operator = (const FastArray& other) {
 		for (size_t i = 0; i < max_size; i++) {
 			items[i] = other.items[i];
 		}
 		return *this;
+	}
+
+	~FastArray() {
+		free(items);
 	}
 
 	size_t size() {
@@ -43,11 +43,17 @@ public:
 	}
 
 	void push_back(const Type& item) {
+		if (count == max_size)
+			throw std::out_of_range("Fast array full");
+
 		count++;
 		*last++ = item;
 	}
 
 	Type pop_back() {
+		if (!count)
+			throw std::out_of_range("Fast array empty");
+
 		count--;
 		return *--last;
 	}
@@ -60,7 +66,7 @@ public:
 		return items[idx];
 	}
 private:
-	Type items[max_size];
+	Type* items;
 	Type* last;
 	size_t count;
 };
