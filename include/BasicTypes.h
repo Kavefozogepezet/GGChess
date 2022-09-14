@@ -11,7 +11,7 @@ namespace GGChess
     static const size_t BOARD_SQUARE_COUNT = BOARD_SIZE * BOARD_SIZE;
 
     static const size_t MAX_MOVES = 256;
-    static const size_t MAX_DEPTH = 64;
+    static const size_t MAX_DEPTH = 128;
     static const size_t TABLE_SIZE = 1048576;
 
     enum class Side : uint8_t
@@ -173,6 +173,18 @@ namespace GGChess
 
         inline BitBoard& operator |= (const BitBoard& other);
         inline BitBoard operator | (const BitBoard& other) const;
+    };
+
+    struct Limits
+    {
+        uint32_t
+            wtime, winc,
+            btime, binc;
+
+        Limits() :
+            wtime(0), winc(0),
+            btime(0), binc(0)
+        {}
     };
 
     class Timer

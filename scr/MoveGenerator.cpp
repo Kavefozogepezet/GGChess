@@ -331,4 +331,20 @@ namespace GGChess
 			break;
 		}
 	}
+
+	size_t Perft(size_t depth, Board& board) {
+		if (depth == 0)
+			return 1;
+
+		MoveList moves;
+		GetAllMoves(board, board.Info(), moves);
+		size_t pos = 0;
+
+		for (Move& move : moves) {
+			board.PlayMove(move);
+			pos += Perft(depth - 1, board);
+			board.UnplayMove();
+		}
+		return pos;
+	}
 }

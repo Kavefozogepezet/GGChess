@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <limits>
+#include <algorithm>
 
 #include <iostream>
 #include "IO.h"
@@ -11,7 +12,7 @@
 #include "ThreadPool.h"
 #include "MovePatterns.h"
 #include "TransposTable.h"
-#include "UCIHandler.h"
+#include "InputHandler.h"
 
 namespace GGChess
 {
@@ -23,8 +24,27 @@ namespace GGChess
 		timer.reset();
 	}
 
-	SearchData sdata;
+	void SearchData::allocTime(Limits limits, Board& board)
+	{
+		int32_t avglen = 40; // average length of a chess match
+		int32_t avgrest = std::max(avglen - board.Ply() / 2, 5); // estimate how many moves are to be played
 
+		movetime = 16000; // default 8000 ms == 8 sec
+
+		if (board.Turn() == Side::White && limits.wtime) {
+			movetime = limits.wtime / avgrest;
+			UCI_INFO << "time: " << limits.wtime << " avgrest: " << avgrest << " allocated: " << movetime << " ms" << std::endl;
+		}
+		else if (limits.btime) {
+			movetime = limits.btime / avgrest;
+		}
+	}
+
+	bool SearchData::timeout() {
+		return movetime < timer.elapsed();
+	}
+
+	SearchData sdata;
 
 	static std::array<uint8_t, TABLE_SIZE> prevPosTable; // TODO Rewrite this mess
 
@@ -156,6 +176,9 @@ namespace GGChess
 
 	static Value QuiesceSearch(Board& board, const PosInfo& info, Value alpha, Value beta)
 	{
+		if (sdata.timeout())
+			return 0; // abort search
+
 		sdata.nodes++;
 		sdata.qnodes++;
 		quiesce_count++;
@@ -200,6 +223,9 @@ namespace GGChess
 
 	static Value SearchHelper(Board& board, const PosInfo& info, int depth, Value alpha, Value beta)
 	{
+		if (sdata.timeout())
+			return 0; // abort search
+
 		tpostable.prefetch(board.Key());
 
 		prevPosTable.at(board.Key() % TABLE_SIZE)++; // TODO better repetition test
@@ -211,7 +237,7 @@ namespace GGChess
 
 		if (depth <= 0) {
 			return QuiesceSearch(board, info, alpha, beta); // search until no capture
-			quiesce_count = 0;
+			//quiesce_count = 0;
 		}
 
 		sdata.nodes++;
@@ -222,13 +248,14 @@ namespace GGChess
 
 		MoveList moves;
 		GetAllMoves(board, info, moves);
-		OrderMoves(board, moves);
 
 		if (moves.size() == 0) {
 			if (info.check)
-				return std::numeric_limits<Value>::min() + 1;
+				return MIN_VALUE + 1;
 			return 0;
 		}
+
+		OrderMoves(board, moves);
 
 		TTFlag flag = TTFlag::Alpha;
 		Move bestmove = moves[0];
@@ -255,28 +282,43 @@ namespace GGChess
 		return alpha;
 	}
 
-	RootMove SearchRoot(Board& board, size_t depth, Value alpha, Value beta)
+	void PickBest(RootList& roots, size_t current) {
+		size_t bestIdx = current;
+		for (size_t i = current + 1; i < roots.size(); i++) {
+			if (roots[bestIdx].score < roots[i].score) {
+				bestIdx = i;
+			}
+		}
+
+		if (current == bestIdx)
+			return;
+
+		RootMove root = roots[current];
+		roots[current] = roots[bestIdx];
+		roots[bestIdx] = root;
+	}
+
+	RootMove SearchRoot(Board& board, PosInfo& info, RootList& moves, size_t depth, Value alpha, Value beta)
 	{
-		PosInfo info = board.Info();
-		RootMove best = RootMove(Move(Square(110), Square(110)));
+		RootMove best = moves[0];
 
 		if (info.check)
 			++depth; // extend search to avoid evaluating position when in check
 
-		MoveList moves;
-		GetAllMoves(board, board.Info(), moves);
-
 		if (moves.size() == 1)
-			return RootMove(moves[0]);
+			return best;
 
-		OrderMoves(board, moves); // TODO relocate when pv ordering is done
+		for (size_t i = 0; i < moves.size(); i++) {
+			PickBest(moves, i); // TODO Test this
+			Move& move = moves[i].myMove;
 
-		int i = 0;
-
-		for (const Move& move : moves) {
 			board.PlayMove(move);
 			Value eval = -SearchHelper(board, board.Info(), depth - 1, -beta, -alpha);
+			moves[i].score = eval;
 			board.UnplayMove();
+
+			if (sdata.timeout()) // Search returned is invalid, return current best
+				return best;
 
 			if (eval > alpha) {
 				best = RootMove(move, eval);
@@ -292,30 +334,45 @@ namespace GGChess
 		return best;
 	}
 
-	Move Search(Board& board, size_t depth) // TODO size_t depth
+	Move Search(Board& board, const Limits& limits) // TODO size_t depth
 	{
 		sdata.reset();
+		sdata.allocTime(limits, board);
+		sdata.side = board.Turn();
 
-		sdata.best = SearchRoot(board, 1, MIN_VALUE, MAX_VALUE);
+		PosInfo info = board.Info();
+
+		MoveList moves;
+		GetAllMoves(board, board.Info(), moves);
+		RootList roots;
+
+		for (Move& move : moves) {
+			roots.push_back(move);
+		}
+
+		sdata.best = SearchRoot(board, info, roots, 1, MIN_VALUE, MAX_VALUE);
 		sdata.depth++;
 		printSearchData(sdata);
 
-		for (sdata.depth = 2; sdata.depth <= depth; sdata.depth++)
+		for (sdata.depth = 2; !sdata.timeout(); sdata.depth++)
 		{
-			sdata.best = SearchRoot(board, sdata.depth, MIN_VALUE, MAX_VALUE);
-			/*
-			Value delta = 50;
-			Value
-				alpha = sdata.best.score - delta,
-				beta = sdata.best.score + delta;
+			//sdata.best = SearchRoot(board, sdata.depth, MIN_VALUE, MAX_VALUE);
+			
+			Value bounds[4][2] = {
+				{ sdata.best.score - 10, sdata.best.score + 10 },
+				{ sdata.best.score - 25, sdata.best.score + 25 },
+				{ sdata.best.score - 50, sdata.best.score + 50 },
+				{ MIN_VALUE, MAX_VALUE }
+			};
 
-			RootMove temp = SearchRoot(board, sdata.depth, alpha, beta); // search with aspiration window
-			if (temp.score <= alpha || temp.score >= beta) {
-				temp = SearchRoot(board, sdata.depth, MIN_VALUE, MAX_VALUE);
-				sdata.aspf++;
+			RootMove tempbest;
+			for (size_t i = 0; i < 4; i++) {
+				tempbest = SearchRoot(board, info, roots, sdata.depth, bounds[i][0], bounds[i][1]); // search with aspiration window
+				if (tempbest.score <= bounds[i][0] || tempbest.score >= bounds[i][1])
+					sdata.aspf++;
 			}
-			sdata.best = temp;
-				*/
+			sdata.best = tempbest;
+
 			printSearchData(sdata, true);
 		}
 		return sdata.best.myMove;

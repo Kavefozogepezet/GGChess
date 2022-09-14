@@ -1,4 +1,4 @@
-#include "UCIHandler.h"
+#include "InputHandler.h"
 
 #include <iostream>
 #include <string>
@@ -70,33 +70,28 @@ namespace GGChess
 
 	static void ExecuteGo(std::stringstream& stream)
 	{
-		Move best = Search(internalBoard, 6);
+		Limits limits;
+		std::string limit_name;
+
+		while (stream) {
+			stream >> limit_name;
+
+			if (limit_name == "wtime") stream >> limits.wtime;
+			else if (limit_name == "btime") stream >> limits.btime;
+			else if (limit_name == "winc") stream >> limits.winc;
+			else if (limit_name == "binc") stream >> limits.binc;
+		}
+
+		Move best = Search(internalBoard, limits);
 		UCI_BESTMOVE(best);
 	}
 
-	// TODO MOVE THIS
-
-	int SearchHelper(int depth, Board& board) {
-		if (depth == 0)
-			return 1;
-
-		MoveList moves;
-		GetAllMoves(internalBoard, internalBoard.Info(), moves);
-		int pos = 0;
-
-		for (Move& move : moves) {
-			ZobristKey zkey = internalBoard.Key();
-
-			board.PlayMove(move);
-			pos += SearchHelper(depth - 1, board);
-			board.UnplayMove();
-		}
-		return pos;
-	}
-
-	void ShearchBruteForce(int depth, Board& board)
+	static void ExecutePerft(std::stringstream& stream)
 	{
-		std::cout << "searching at depth " << depth << " on position:\n" << board << "\n\n";
+		size_t depth;
+		stream >> depth;
+
+		std::cout << "searching at depth " << depth << " on position:\n" << internalBoard << "\n\n";
 
 		if (depth <= 0) {
 			std::cout << 1 << std::endl;
@@ -105,24 +100,16 @@ namespace GGChess
 
 		MoveList moves;
 		GetAllMoves(internalBoard, internalBoard.Info(), moves);
-		int pos = 0;
+		size_t pos = 0;
 
 		for (Move& move : moves) {
-			board.PlayMove(move);
-			int subpos = SearchHelper(depth - 1, board);
+			internalBoard.PlayMove(move);
+			size_t subpos = Perft(depth - 1, internalBoard);
 			pos += subpos;
 			std::cout << move << ": " << subpos << "\n";
-			board.UnplayMove();
+			internalBoard.UnplayMove();
 		}
 		std::cout << "\nfound positions: " << pos << std::endl;
-	}
-
-	static void Perft(std::stringstream& stream)
-	{
-		int depth;
-		stream >> depth;
-
-		ShearchBruteForce(depth, internalBoard);
 	}
 
 	static void PrintCaptures() {
@@ -131,6 +118,71 @@ namespace GGChess
 		for (Move& move : moves) {
 			std::cout << std::to_string(move) << " " << BadCapture(internalBoard, move) << std::endl;
 		}
+	}
+
+	static void ExecutePlay(std::stringstream& stream)
+	{
+		char side_char;
+		stream >> side_char;
+
+		Side mySide = side_char == 'b' ? Side::Black : Side::White;
+		bool resigned = false;
+
+		PosInfo info;
+
+		while (true) {
+			system("cls");
+			std::cout << internalBoard << std::endl;
+			info = internalBoard.Info();
+
+			if (internalBoard.Turn() == mySide) {
+				Move move = Search(internalBoard, Limits());
+
+				if (move.origin == Square::InvalidSquare)
+					break;
+
+				internalBoard.PlayUnrecorded(move);
+			}
+			else {
+				MoveList moves;
+				GetAllMoves(internalBoard, internalBoard.Info(), moves);
+
+				if (moves.size() == 0)
+					break;
+
+				std::cout << "play a move: ";
+				std::string move_in;
+				std::cin >> move_in;
+
+				if (move_in == "resign") {
+					resigned = true;
+					break;
+				}
+
+				for (const Move& move : moves)
+					if (std::to_string(move) == move_in)
+						internalBoard.PlayUnrecorded(move);
+			}
+		}
+		if (!resigned) {
+			if (info.check)
+				std::cout <<
+				"Checkmate, " <<
+				std::to_string(otherside(internalBoard.Turn())) <<
+				" is victorious" << std::endl;
+			else
+				std::cout << "Draw" << std::endl;
+		}
+		else {
+			std::cout <<
+				std::to_string(otherside(mySide)) <<
+				" resigned, " <<
+				std::to_string(mySide) <<
+				" is victorious" << std::endl;
+		}
+
+		std::cin.get();
+		system("cls");
 	}
 
 	static void ExecuteCommand(const std::string& line)
@@ -152,13 +204,15 @@ namespace GGChess
 		else if (first == "go")
 			ExecuteGo(stream);
 		else if (first == "perft")
-			Perft(stream);
+			ExecutePerft(stream);
 		else if (first == "eval")
 			std::cout << "Position evaluation: " << Evaluate(internalBoard, internalBoard.Info()) << std::endl;
 		else if (first == "captures")
 			PrintCaptures();
 		else if (first == "info")
 			std::cout << internalBoard.Info().attackBoard << std::endl;
+		else if (first == "playme")
+			ExecutePlay(stream);
 	}
 
 	void UCIMain()

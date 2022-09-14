@@ -5,6 +5,9 @@
 #include <array>
 #include <chrono>
 
+#include "FastArray.h"
+#include "BasicTypes.h"
+
 namespace GGChess
 {
 	class Board;
@@ -23,18 +26,25 @@ namespace GGChess
 		bool operator < (const RootMove& other) const;
 	};
 
+	typedef FastArray<RootMove, MAX_MOVES> RootList;
+
 	struct SearchData {
 		using clock = typename std::chrono::steady_clock;
 
 		uint64_t nodes;
 		uint64_t qnodes;
 		uint64_t aspf;
-		Timer timer;
 
+		Timer timer;
+		uint64_t movetime;
+
+		Side side;
 		size_t depth;
 		RootMove best;
 
 		void reset();
+		void allocTime(Limits limits, Board& board);
+		bool timeout();
 	};
 
 	extern SearchData sdata;
@@ -61,7 +71,7 @@ namespace GGChess
 
 	Value Evaluate(Board& board, const PosInfo& info);
 
-	Move Search(Board& board, size_t depth);
+	Move Search(Board& board, const Limits& limits);
 
 	bool BadCapture(Board& board, Move& move);
 }

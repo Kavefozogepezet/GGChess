@@ -30,7 +30,7 @@
     <ClCompile Include="scr\Fen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="scr\UCIHandler.cpp">
+    <ClCompile Include="scr\InputHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="scr\ThreadPool.cpp">
@@ -68,7 +68,7 @@
     <ClInclude Include="include\Fen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\UCIHandler.h">
+    <ClInclude Include="include\InputHandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\ThreadPool.h">

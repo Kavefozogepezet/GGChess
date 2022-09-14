@@ -75,7 +75,7 @@
       <AdditionalIncludeDirectories>$(Projectdir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
       <MinimalRebuild>false</MinimalRebuild>
     </ClCompile>
     <Link>
@@ -94,7 +94,7 @@
     <ClCompile Include="scr\IO.cpp" />
     <ClCompile Include="scr\Board.cpp" />
     <ClCompile Include="scr\PSTables.cpp" />
-    <ClCompile Include="scr\UCIHandler.cpp" />
+    <ClCompile Include="scr\InputHandler.cpp" />
     <ClCompile Include="scr\ThreadPool.cpp" />
     <ClCompile Include="scr\ZobristHash.cpp" />
     <ClCompile Include="scr\TransposTable.cpp" />
@@ -107,7 +107,7 @@
     <ClInclude Include="include\FastArray.h" />
     <ClInclude Include="include\IO.h" />
     <ClInclude Include="include\MoveGenerator.h" />
-    <ClInclude Include="include\UCIHandler.h" />
+    <ClInclude Include="include\InputHandler.h" />
     <ClInclude Include="include\ThreadPool.h" />
     <ClInclude Include="include\ZobristHash.h" />
     <ClInclude Include="include\TransposTable.h" />

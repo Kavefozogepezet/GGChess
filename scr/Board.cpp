@@ -43,6 +43,7 @@ namespace GGChess
 
 	void Board::PlayUnrecorded(const Move& move)
 	{
+		ply++;
 		hash.castle(castling); // in case it changes we remove it from the hash code
 
 		Piece mPiece = board[move.origin]; // the moveing piece
@@ -134,6 +135,8 @@ namespace GGChess
 
 	void Board::UnplayMove()
 	{
+		ply--;
+
 		MoveData moveData = moveRecord.pop_back();
 		const Move& move = moveData.move;
 		turn = otherside(turn);

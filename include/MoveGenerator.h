@@ -29,4 +29,6 @@ namespace GGChess
 	void GetMoves(Board& board, const PosInfo& info, Square square, MoveList& moves);
 
 	bool IsSquareAttacked(Board& board, const PosInfo& info, Square square, Side attacker);
+
+	size_t Perft(size_t depth, Board& board);
 }

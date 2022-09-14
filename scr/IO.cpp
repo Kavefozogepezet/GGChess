@@ -35,6 +35,10 @@ namespace std
 
 		return str;
 	}
+
+	std::string to_string(GGChess::Side side) {
+		return side == GGChess::Side::White ? "White" : "Black";
+	}
 }
 
 namespace GGChess
@@ -78,18 +82,35 @@ namespace GGChess
 
 	std::ostream& operator << (std::ostream& stream, const Board& board)
 	{
-		const char
-			*sep1 = " +---+---+---+---+---+---+---+---+ ",
-			*sep2 = " | ";
+		styledout bbs, bws,  wws, wbs;
+		bbs.bg(styledout::GRAY).fg(styledout::BLACK);
+		bws.bg(styledout::GRAY).fg(styledout::WHITE);
+		wws.bg(styledout::LIGHT_GRAY).fg(styledout::WHITE);
+		wbs.bg(styledout::LIGHT_GRAY).fg(styledout::BLACK);
 
-		for (int rank = 7; rank >= 0; rank--) {
-			std::cout << std::endl << sep1 << std::endl << sep2;
-			for (int file = 0; file < 8; file++) {
-				std::cout << piece_to_char(board.array()[rank * 8 + file]) << sep2;
+		const char* files = "    a  b  c  d  e  f  g  h";
+
+		std::cout << files << std::endl;
+
+		for (int rank = 7; rank >= 0; rank--) 
+		{
+			std::cout << ' ' << rank + 1 << ' ';
+
+			for (int file = 0; file < 8; file++)
+			{
+				Square sq = Square(rank * 8 + file);
+				styledout style;
+
+				if ((rank + file) % 2 == 0)
+					style = sideof(board[sq]) == Side::White ? bws : bbs;
+				else
+					style = sideof(board[sq]) == Side::White ? wws : wbs;
+
+				style << ' ' << piece_to_char(board[rank * 8 + file]) << ' ';
 			}
-			std::cout << rank + 1;
+			std::cout << styledout::nostyle << ' ' << rank + 1 << std::endl;
 		}
-		std::cout << std::endl << sep1 << std::endl << "   a   b   c   d   e   f   g   h" << std::endl;
+		std::cout << files << std::endl;
 
 		std::cout << "e.p. target : " << std::to_string(board.EPTarget()) << "; castle : " << (unsigned int)board.Castling() << std::endl;
 
@@ -130,6 +151,60 @@ namespace GGChess
 			stream >> rank;
 			square = (Square)((rank - '1') * 8 + (file - 'a'));
 		}
+		return stream;
+	}
+
+	const styledout styledout::basic = styledout("0");
+
+	std::ostream& styledout::writeWith(const styledout& style) {
+		return std::cout << style;
+	}
+
+	styledout::styledout() : style() {}
+
+	styledout::styledout(const std::string& args) : style(args) {}
+
+	styledout& styledout::add(const std::string& arg) {
+		if (this->style.length() > 0) {
+			this->style += ";";
+		}
+		this->style += arg;
+		return *this;
+	}
+
+	styledout& styledout::fg(ColorCode color) {
+		return this->add(std::to_string(static_cast<int>(color)));
+	}
+
+	styledout& styledout::fg(color8b color) {
+		return this->add("38").add("5").add(std::to_string(static_cast<int>(color)));
+	}
+
+	styledout& styledout::fg(color8b r, color8b g, color8b b) {
+		return this->add("38").add("2")
+			.add(std::to_string(static_cast<int>(r)))
+			.add(std::to_string(static_cast<int>(g)))
+			.add(std::to_string(static_cast<int>(b)));
+	}
+
+	styledout& styledout::bg(ColorCode color) {
+		int temp = static_cast<int>(color) + 10;
+		return this->add(std::to_string(static_cast<int>(temp)));
+	}
+
+	styledout& styledout::bg(color8b color) {
+		return this->add("48").add("5").add(std::to_string(static_cast<int>(color)));
+	}
+
+	styledout& styledout::bg(color8b r, color8b g, color8b b) {
+		return this->add("48").add("2")
+			.add(std::to_string(static_cast<int>(r)))
+			.add(std::to_string(static_cast<int>(g)))
+			.add(std::to_string(static_cast<int>(b)));
+	}
+
+	std::ostream& operator<<(std::ostream& stream, const styledout& cs) {
+		stream << "\033[" + cs.style + "m";
 		return stream;
 	}
 }
